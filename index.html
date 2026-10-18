@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero card">
+  <div><span class="pill">Market status: demo</span><h2>Buyer team market hub</h2>
+  <p>Review sellers and rules, validate price offers, run seeded daily simulations, and download the public transaction record.</p></div>
+  <div class="hero-stat"><strong>{{ state.day }}</strong><span>days simulated</span></div>
+</section>
+
+{% if announcements %}
+<section class="card"><h2>Announcements</h2>
+  {% for a in announcements %}<article class="announcement"><strong>{{ a.title }}</strong><p>{{ a.message }}</p><small>{{ a.date or "Date not specified" }}</small></article>{% endfor %}
+</section>
+{% endif %}
+
+<section class="grid two">
+  <div class="card"><h2>Market schedule</h2>
+    <dl class="details">
+      <dt>Offer cutoff</dt><dd>{{ config.cutoff_time or "Set official cutoff time in data/rules.json" }}</dd>
+      <dt>Results release</dt><dd>{{ config.results_time or "Set official results time in data/rules.json" }}</dd>
+      <dt>Timezone</dt><dd>{{ config.timezone or "Set course timezone" }}</dd>
+      <dt>Current simulated day</dt><dd>{{ state.day }}</dd>
+    </dl>
+    <h3>Rules</h3><ul>{% for rule in config.public_rules or [] %}<li>{{ rule }}</li>{% endfor %}</ul>
+    <p class="muted">These are configuration values, not a real-time deadline enforcement system.</p>
+  </div>
+  <div class="card"><h2>Seller directory</h2>
+    {% if sellers %}<div class="seller-list">{% for s in sellers %}
+      <div class="seller"><strong>{{ s.name }}</strong><span>{{ s.seller_id }}</span><p>{{ s.description }}</p>
+      {% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">Open seller website ↗</a>{% else %}<span class="muted">Official URL not configured</span>{% endif %}</div>
+    {% endfor %}</div>{% else %}<p>No sellers configured yet. Add the official seller list to <code>data/sellers.json</code>.</p>{% endif %}
+  </div>
+</section>
+
+<section class="card">
+  <div class="section-head"><div><h2>Offer file and validation</h2><p class="muted">The engine reads <code>data/offers.csv</code>. Validate it before each run.</p></div><span class="pill {{ 'ok' if validation.valid else 'bad' }}">{{ 'Valid' if validation.valid else 'Needs fixes' }}</span></div>
+  <p>{{ validation.offer_count }} offer rows loaded.</p>
+  {% if validation.errors %}<div class="notice bad"><strong>Errors</strong><ul>{% for e in validation.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if validation.warnings %}<div class="notice"><strong>Warnings</strong><ul>{% for w in validation.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+  <div class="table-wrap"><table><thead><tr><th>Seller</th><th>Product</th><th>Unit price</th><th>Quantity</th><th>Effective day</th></tr></thead><tbody>
+  {% for o in offers %}<tr><td>{{ o.seller_name }} <small>({{ o.seller_id }})</small></td><td>{{ o.product_name }} <small>({{ o.product_id }})</small></td><td>${{ o.unit_price }}</td><td>{{ o.quantity }}</td><td>{{ o.effective_day }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+
+<section class="grid two">
+  <div class="card"><h2>Run next market day</h2>
+    <p>Runs a simulation using the configured customer mix and current carried inventory. A seed makes the run reproducible when the same inputs and starting state are used.</p>
+    <form method="post" action="{{ url_for('run_day') }}">
+      <label for="seed">Random seed (optional)</label><input id="seed" name="seed" type="number" placeholder="Leave blank for configured default + day">
+      <button type="submit" {% if not validation.valid %}disabled{% endif %}>Run simulation</button>
+    </form>
+    {% if latest %}<p class="muted">Latest run: Day {{ latest.day }}, seed {{ latest.seed }}, {{ latest.transactions }} transactions, {{ latest.units_sold }} units, ${{ "%.2f"|format(latest.revenue) }} revenue.</p>{% endif %}
+    <form method="post" action="{{ url_for('reset') }}" onsubmit="return confirm('Reset demo inventory and transactions? The audit log is preserved.');"><button class="secondary" type="submit">Reset demo state</button></form>
+    <p class="muted">Reset is for local testing only. Do not expose administrative actions publicly without authentication.</p>
+  </div>
+  <div class="card"><h2>Replay / compare seeds</h2><p>Compare two seeded runs from the same starting inventory. These comparison runs do not change the live market state.</p>
+    <form method="post" action="{{ url_for('replay') }}" class="form-row">
+      <div><label for="seed_a">Seed A</label><input id="seed_a" name="seed_a" type="number" value="100" required></div>
+      <div><label for="seed_b">Seed B</label><input id="seed_b" name="seed_b" type="number" value="200" required></div>
+      <button type="submit">Compare runs</button>
+    </form>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Aggregate market results</h2>
+  <div class="metrics">
+    <div><strong>{{ aggregate.transaction_count }}</strong><span>transactions</span></div>
+    <div><strong>{{ aggregate.units_sold }}</strong><span>units sold</span></div>
+    <div><strong>${{ "%.2f"|format(aggregate.revenue) }}</strong><span>gross revenue</span></div>
+  </div>
+  <h3>By seller</h3>
+  {% if aggregate.by_seller %}<div class="table-wrap"><table><thead><tr><th>Seller</th><th>Transactions</th><th>Units</th><th>Revenue</th></tr></thead><tbody>{% for s in aggregate.by_seller %}<tr><td>{{ s.seller_name }} ({{ s.seller_id }})</td><td>{{ s.transactions }}</td><td>{{ s.units }}</td><td>${{ "%.2f"|format(s.revenue) }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p>No transactions recorded yet. Run a simulation to create results.</p>{% endif %}
+  <div class="download-row"><a class="button-link" href="{{ url_for('download_transactions') }}">Download transactions CSV</a><a class="button-link outline" href="{{ url_for('download_results') }}">Download results JSON</a><a class="button-link outline" href="{{ url_for('download_audit') }}">Download audit log</a></div>
+</section>
+
+<section class="card">
+  <h2>Customer model currently configured</h2>
+  <p class="muted">Illustrative values only until the instructor confirms the model parameters.</p>
+  <div class="table-wrap"><table><thead><tr><th>Customer type</th><th>Weight</th><th>Budget</th><th>Price sensitivity</th><th>Value multiplier</th><th>Loyalty bonus</th></tr></thead><tbody>
+  {% for c in config.customer_types or [] %}<tr><td>{{ c.name }}</td><td>{{ c.weight }}</td><td>${{ c.budget }}</td><td>{{ c.price_sensitivity }}</td><td>{{ c.value_multiplier }}</td><td>{{ c.loyalty_bonus }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+
+<section class="card">
+  <h2>Public results API</h2><p>Aggregate results are available in JSON for another site or dashboard.</p><p><code>/api/results</code> · <code>/health</code></p>
+</section>
+{% endblock %}

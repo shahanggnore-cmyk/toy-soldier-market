@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Toy Soldier Buyer Market" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">COMPUTATIONAL GAME THEORY · BUYER TEAM</p>
+    <h1>Toy Soldier Market</h1>
+    <p class="subtitle">Buyer market portal, simulation, and public results</p>
+    <nav><a href="{{ url_for('index') }}">Market home</a><a href="{{ url_for('download_transactions') }}">Transactions CSV</a><a href="{{ url_for('download_results') }}">Results JSON</a><a href="{{ url_for('download_audit') }}">Audit log</a></nav>
+  </div>
+</header>
+<main class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer><div class="wrap">Classroom simulation prototype · Configure official rules and review deployment security before public launch.</div></footer>
+</body>
+</html>
