@@ -1,1 +1,26 @@
-
+{
+  "cutoff_time": "Not yet confirmed",
+  "results_time": "Not yet confirmed",
+  "timezone": "America/New_York",
+  "public_rules": [
+    "Official market rules pending instructor confirmation."
+  ],
+  "customers_per_day": 30,
+  "default_seed": 2026,
+  "max_unit_price": 100,
+  "default_product_value": 25,
+  "minimum_utility": 0,
+  "product_values": {},
+  "customer_types": [
+    {
+      "name": "standard",
+      "weight": 1,
+      "budget": 100,
+      "price_sensitivity": 1,
+      "value_multiplier": 1,
+      "loyalty_bonus": 0,
+      "quantity_cap": 1,
+      "purchase_probability": 0.8
+    }
+  ]
+}
