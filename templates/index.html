@@ -40,6 +40,27 @@
       <dt>Current simulated day</dt>
       <dd>{{ state.day }}</dd>
     </dl>
+    
+<div>
+  Current Eastern Time: <span id="eastern-clock"></span>
+</div>
+
+<script>
+  function updateEasternClock() {
+    document.getElementById("eastern-clock").textContent =
+      new Date().toLocaleTimeString("en-US", {
+        timeZone: "America/New_York",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZoneName: "short"
+      });
+  }
+
+  updateEasternClock();
+  setInterval(updateEasternClock, 1000);
+</script>
+
     <h3>Market Rules</h3>
     <ul>
       {% for rule in config.public_rules or [] %}
