@@ -1,10 +1,7 @@
 {
-  "cutoff_time": "Not yet confirmed",
-  "results_time": "Not yet confirmed",
+  "cutoff_time": "10-31",
+  "results_time": "11-1",
   "timezone": "America/New_York",
-  "public_rules": [
-    "Official market rules pending instructor confirmation."
-  ],
   "customers_per_day": 30,
   "default_seed": 2026,
   "max_unit_price": 100,
