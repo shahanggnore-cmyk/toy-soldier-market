@@ -60,8 +60,7 @@
         <p>{{ s.description or s.members|join(", ") if s.members else s.description or "" }}</p>
         {% if s.url %}
         <a href="{{ s.url }}" target="_blank" rel="noopener">Open seller website ↗</a>
-        {% else %}
-        <span class="muted">Official URL not configured</span>
+       
         {% endif %}
       </div>
       {% endfor %}
