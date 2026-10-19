@@ -1,12 +1,27 @@
+
 [
   {
     "name": "Group 1",
-    "members": [
-      "Frank Baiata",
-      "Justin Meyer",
-      "Giovanni Pugni",
-      "Ronald Levantini",
-      "Ahmaed Thomas"
-    ]
+    "seller_id": "G1",
+    "description": "Members: Frank Baiata, Justin Meyer, Giovanni Pugni, Ronald Levantini, Ahmaed Thomas",
+    "url": ""
+  },
+  {
+    "name": "Group 2",
+    "seller_id": "G2",
+    "description": "Members: Alif Zaman, Gurkirat Singh, Jeantonio Stsurin, Matthew Fuller, Kevin Yu",
+    "url": ""
+  },
+  {
+    "name": "Group 3",
+    "seller_id": "G3",
+    "description": "Members: Benji Sanoff-Wiener, Cyrus Hossain, Dhrew Gandhi, Maximus Crilly, Zach Mushorn",
+    "url": ""
+  },
+  {
+    "name": "Group 5",
+    "seller_id": "G5",
+    "description": "Members: Joseph Rivera, Joel Rodriguez, Timothy Bas, D'Angelo, Alex",
+    "url": ""
   }
 ]
