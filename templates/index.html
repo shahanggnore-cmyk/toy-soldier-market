@@ -360,26 +360,28 @@
         b.stock - a.stock;
     });
 
-    let remaining = target;
-    let purchasedUnits = 0;
-    let estimatedCost = 0;
+let remaining = target;
+let purchasedUnits = 0;
+let estimatedCost = 0;
 
-    offers.forEach(function (offer, index) {
-      const quantity = Math.min(offer.stock, remaining);
+offers.forEach(function (offer, index) {
+  const quantity = Math.min(offer.stock, remaining);
 
-      offer.row.querySelector(".buyer-rank").textContent =
-        String(index + 1);
-      offer.row.querySelector(".buyer-score").textContent =
-        offer.score.toFixed(1);
-      offer.row.querySelector(".buyer-quantity").textContent =
-        String(quantity);
+  offer.row.querySelector(".buyer-rank").textContent =
+    String(index + 1);
+  offer.row.querySelector(".buyer-score").textContent =
+    offer.score.toFixed(1);
+  offer.row.querySelector(".buyer-quantity").textContent =
+    String(quantity);
 
-      remaining -= quantity;
-      purchasedUnits += quantity;
-      estimatedCost += quantity * offer.price;
+  remaining -= quantity;
+  purchasedUnits += quantity;
+  estimatedCost += quantity * offer.price;
+});
 
-      tbody.appendChild(offer.row);
-    });
+rows.forEach(function (row) {
+  tbody.appendChild(row);
+});
 
     totalUnits.textContent = String(purchasedUnits);
     totalCost.textContent = "$" + estimatedCost.toFixed(2);
