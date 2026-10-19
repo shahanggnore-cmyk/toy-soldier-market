@@ -365,7 +365,7 @@ let purchasedUnits = 0;
 let estimatedCost = 0;
 
 offers.forEach(function (offer, index) {
-  const quantity = Math.min(offer.stock, remaining);
+  const quantity = Math.min(7, offer.stock);
 
   offer.row.querySelector(".buyer-rank").textContent =
     String(index + 1);
