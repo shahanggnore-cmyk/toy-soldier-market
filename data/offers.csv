@@ -1,2 +1,5 @@
 seller_id,seller_name,product_id,product_name,unit_price,quantity,effective_day
 G1,Group 1,TS01,Toy Soldier,10,10,1
+G2,Group 2,TS01,Toy Soldier,10,10,1
+G3,Group 3,TS01,Toy Soldier,10,10,1
+G5,Group 5,TS01,Toy Soldier,10,10,1
