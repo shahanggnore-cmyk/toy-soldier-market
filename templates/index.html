@@ -520,40 +520,7 @@
   </div>
 </section>
 
-<section class="card">
-  <h2>Customer Model Currently Configured</h2>
-  <p class="muted">
-    These values are illustrative until the instructor confirms the
-    customer model parameters.
-  </p>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Customer Type</th>
-          <th>Weight</th>
-          <th>Budget</th>
-          <th>Price Sensitivity</th>
-          <th>Value Multiplier</th>
-          <th>Loyalty Bonus</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in config.customer_types or [] %}
-        <tr>
-          <td>{{ c.name }}</td>
-          <td>{{ c.weight }}</td>
-          <td>${{ c.budget }}</td>
-          <td>{{ c.price_sensitivity }}</td>
-          <td>{{ c.value_multiplier }}</td>
-          <td>{{ c.loyalty_bonus }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
 
 
 
