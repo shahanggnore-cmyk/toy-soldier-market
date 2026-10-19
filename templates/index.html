@@ -84,4 +84,138 @@
 <section class="card">
   <h2>Public results API</h2><p>Aggregate results are available in JSON for another site or dashboard.</p><p><code>/api/results</code> · <code>/health</code></p>
 </section>
+<section class="card" id="buyer-strategy">
+  <h2>🤖 Buyer Strategy — Automatic Recommendations</h2>
+  <p>
+    This strategy ranks available toy offers by estimated value for money.
+    It recommends the best-value offers first.
+  </p>
+
+  <label for="buyer-target">How many toys do you want to buy?</label>
+  <input id="buyer-target" type="number" min="1" value="10">
+
+  <button type="button" onclick="runBuyerStrategy()">
+    Find Best Offers
+  </button>
+
+  <p id="buyer-summary" class="muted">
+    Click the button to rank the available offers.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Seller</th>
+          <th>Toy</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Value per Dollar</th>
+          <th>Recommended Quantity</th>
+        </tr>
+      </thead>
+      <tbody id="buyer-results">
+        {% for o in offers %}
+        <tr
+          data-seller="{{ o.seller_name }}"
+          data-product="{{ o.product_name }}"
+          data-price="{{ o.unit_price }}"
+          data-stock="{{ o.quantity }}"
+          data-value="{{ config.get('product_values', {}).get(o.product_id, config.get('default_product_value', 25)) }}"
+        >
+          <td class="buyer-rank">—</td>
+          <td>{{ o.seller_name }}</td>
+          <td>{{ o.product_name }}</td>
+          <td>${{ o.unit_price }}</td>
+          <td>{{ o.quantity }}</td>
+          <td class="buyer-score">—</td>
+          <td class="buyer-quantity">—</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="muted">
+    Important: These are recommendations based on configured toy values
+    and listed prices. This tool does not purchase toys automatically.
+    Confirm the toy values and available stock before making real decisions.
+  </p>
+</section>
+
+<script>
+function runBuyerStrategy() {
+  const targetInput = document.getElementById("buyer-target");
+  const target = Math.floor(Number(targetInput.value));
+  const summary = document.getElementById("buyer-summary");
+  const table = document.getElementById("buyer-results");
+
+  if (!Number.isFinite(target) || target < 1) {
+    summary.textContent = "Enter a quantity of at least 1.";
+    return;
+  }
+
+  const rows = Array.from(table.querySelectorAll("tr"));
+  const offers = [];
+
+  rows.forEach(row => {
+    const price = Number(row.dataset.price);
+    const stock = Math.max(0, Math.floor(Number(row.dataset.stock)));
+    const value = Number(row.dataset.value);
+
+    if (
+      Number.isFinite(price) &&
+      Number.isFinite(stock) &&
+      Number.isFinite(value) &&
+      price > 0 &&
+      stock > 0 &&
+      value >= 0
+    ) {
+      offers.push({
+        row: row,
+        price: price,
+        stock: stock,
+        value: value,
+        score: value / price
+      });
+    }
+  });
+
+  offers.sort((a, b) =>
+    b.score - a.score || a.price - b.price
+  );
+
+  let remaining = target;
+  let recommendedTotal = 0;
+
+  offers.forEach((offer, index) => {
+    const quantity = Math.min(offer.stock, remaining);
+
+    offer.row.querySelector(".buyer-rank").textContent = index + 1;
+    offer.row.querySelector(".buyer-score").textContent =
+      offer.score.toFixed(2);
+    offer.row.querySelector(".buyer-quantity").textContent = quantity;
+
+    remaining -= quantity;
+    recommendedTotal += quantity;
+  });
+
+  rows.forEach(row => {
+    if (!offers.some(offer => offer.row === row)) {
+      row.querySelector(".buyer-rank").textContent = "—";
+      row.querySelector(".buyer-score").textContent = "Unavailable";
+      row.querySelector(".buyer-quantity").textContent = 0;
+    }
+  });
+
+  offers.forEach(offer => table.appendChild(offer.row));
+
+  const message = remaining > 0
+    ? `Recommended ${recommendedTotal} toys. There is not enough listed stock to reach your target of ${target}.`
+    : `Recommended ${recommendedTotal} toys, starting with the best value offers.`;
+
+  summary.textContent = message;
+}
+</script>
 {% endblock %}
