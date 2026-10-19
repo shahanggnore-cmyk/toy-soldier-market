@@ -210,3 +210,50 @@ def replay_runs(offers, config, inventory, seed_a, seed_b):
         "transactions_a": a["transactions"], "transactions_b": b["transactions"],
         "inventory_note": "Both runs use the same starting inventory and are comparison-only; neither changes the live market state."
     }
+    
+def recommend_buys(offers, config, target_units=None):
+    """Rank seller offers for the buyer team without changing market state."""
+    product_values = config.get("product_values", {})
+    default_value = float(config.get("default_product_value", 25))
+    recommendations = []
+
+    for offer in offers:
+        try:
+            price = float(offer["unit_price"])
+            quantity = int(float(offer["quantity"]))
+            product_id = offer["product_id"]
+            value = float(product_values.get(product_id, default_value))
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if price <= 0 or quantity <= 0:
+            continue
+
+        # Higher value per dollar ranks better.
+        score = value / price
+
+        recommendations.append({
+            "seller_id": offer.get("seller_id", ""),
+            "seller_name": offer.get("seller_name", ""),
+            "product_id": product_id,
+            "product_name": offer.get("product_name", ""),
+            "unit_price": price,
+            "available_quantity": quantity,
+            "value_per_dollar": round(score, 3),
+            "recommended_quantity": (
+                min(quantity, int(target_units))
+                if target_units is not None and int(target_units) > 0
+                else 0
+            ),
+        })
+
+    recommendations.sort(
+        key=lambda item: (
+            -item["value_per_dollar"],
+            item["unit_price"],
+            -item["available_quantity"],
+        )
+    )
+
+    return recommendations
+
