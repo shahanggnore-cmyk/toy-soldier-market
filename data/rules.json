@@ -1,43 +1,105 @@
 {
+  "market_status": "demo",
   "cutoff_time": "10-31",
   "results_time": "11-1",
   "timezone": "America/New_York",
   "customers_per_day": 30,
+  "returning_customer_fraction": 0.5,
+  "budget_renewal": "daily",
   "default_seed": 2026,
   "max_unit_price": 100,
   "default_product_value": 25,
   "minimum_utility": 0,
-  "product_values": {},
+  "switching_cost": 0.25,
+  "preferred_product_bonus": 1.0,
+  "product_values": {
+    "TS01": 12.0,
+    "TS02": 16.0,
+    "TS03": 20.0
+  },
+  "public_rules": [
+    "Each simulated customer can make at most one purchase from one seller per day.",
+    "Customers may buy nothing when no eligible offer has positive utility.",
+    "Virtual inventory is tracked in the market ledger and does not change physical seller inventory.",
+    "Offer IDs must remain stable; editing an offer quantity cannot replenish carried virtual stock.",
+    "Current customer parameters and sample prices are illustrative and require instructor approval before scored play."
+  ],
+  "advertising": {
+    "seller_id": "",
+    "consideration_probability_lift": 0.0,
+    "note": "Set only to the instructor-announced outcome; advertising affects consideration, not guaranteed sales."
+  },
   "customer_types": [
     {
       "name": "bargain_hunter",
       "weight": 1,
-      "budget": 10,
-      "price_sensitivity": 2,
-      "value_multiplier": 0.8,
-      "loyalty_bonus": 0,
+      "budget": 10.0,
+      "product_values": {
+        "TS01": 9.0,
+        "TS02": 12.0,
+        "TS03": 14.0
+      },
+      "value_multiplier": 1.0,
+      "loyalty_bonus": 0.0,
       "quantity_cap": 1,
-      "purchase_probability": 0.8
+      "purchase_probability": 1.0,
+      "search_limit": 999999,
+      "inconvenience_cost": 0.0,
+      "preferred_product_ids": []
     },
     {
       "name": "collector",
       "weight": 1,
-      "budget": 30,
-      "price_sensitivity": 0.7,
-      "value_multiplier": 1.5,
+      "budget": 30.0,
+      "product_values": {
+        "TS01": 18.0,
+        "TS02": 24.0,
+        "TS03": 30.0
+      },
+      "value_multiplier": 1.0,
       "loyalty_bonus": 0.5,
       "quantity_cap": 1,
-      "purchase_probability": 0.8
+      "purchase_probability": 1.0,
+      "search_limit": 999999,
+      "inconvenience_cost": 0.0,
+      "preferred_product_ids": [
+        "TS03"
+      ]
     },
     {
       "name": "convenience_shopper",
       "weight": 1,
-      "budget": 20,
-      "price_sensitivity": 1,
-      "value_multiplier": 1,
-      "loyalty_bonus": 0,
+      "budget": 20.0,
+      "product_values": {
+        "TS01": 12.0,
+        "TS02": 15.0,
+        "TS03": 18.0
+      },
+      "value_multiplier": 1.0,
+      "loyalty_bonus": 0.25,
       "quantity_cap": 1,
-      "purchase_probability": 0.8
+      "purchase_probability": 1.0,
+      "search_limit": 2,
+      "inconvenience_cost": 0.25,
+      "preferred_product_ids": []
+    },
+    {
+      "name": "returning_customer",
+      "weight": 1,
+      "budget": 20.0,
+      "product_values": {
+        "TS01": 14.0,
+        "TS02": 18.0,
+        "TS03": 22.0
+      },
+      "value_multiplier": 1.0,
+      "loyalty_bonus": 1.0,
+      "quantity_cap": 1,
+      "purchase_probability": 1.0,
+      "search_limit": 999999,
+      "inconvenience_cost": 0.0,
+      "preferred_product_ids": []
     }
-  ]
+  ],
+  "publish_seed": false
 }

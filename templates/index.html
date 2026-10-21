@@ -4,7 +4,7 @@
 
 <section class="hero card">
   <div>
-    <span class="pill">Market status: demo</span>
+    <span class="pill">Market status: {{ "demo" if demo_mode else "live" }}</span>
     <h2>Buyer Team Market Hub</h2>
     <p>Compare sellers, find the best toy offers, run market simulations, and analyze results.</p>
   </div>
@@ -93,6 +93,18 @@
 </section>
 
 <section class="card">
+  <h2>Customer Model</h2>
+  <p>The sample simulation uses four customer types. Exact budgets and product values are configured privately pending instructor approval.</p>
+  <ul>
+    <li><strong>Bargain hunters:</strong> lower willingness to pay and a strict budget; may choose to buy nothing.</li>
+    <li><strong>Collectors:</strong> higher values for desired products and a possible benefit from prior seller relationships.</li>
+    <li><strong>Convenience shoppers:</strong> inspect a limited, randomized subset of sellers and account for inconvenience.</li>
+    <li><strong>Returning customers:</strong> retain a stable identity and seller purchase history across simulated days.</li>
+  </ul>
+  <p><strong>Choice rule:</strong> utility = product value − total price + loyalty benefit − inconvenience cost. Customers choose the highest positive-utility eligible offer they can afford and that has virtual stock, or buy nothing. Exact ties are resolved using the saved random seed.</p>
+</section>
+
+<section class="card">
   <h2>Available Toy Offers</h2>
   <p class="muted">These offers are loaded from data/offers.csv.</p>
 
@@ -155,8 +167,7 @@
 <section class="card" id="buyer-strategy">
   <h2>🤖 Buyer Strategy and Quality Comparison</h2>
   <p>
-    This tool ranks available offers using toy quality and affordability.
-    It then recommends how to distribute your target purchase across sellers.
+    This optional planning tool ranks offers using your entered quality ratings and affordability. It recommends quantities only; the daily simulation below uses customer values, budgets, search, loyalty, and virtual inventory.
   </p>
 
   <div class="form-row">
@@ -255,148 +266,91 @@
   </div>
 
   <p class="muted">
-    How it works: the algorithm scores quality and affordability using
-    your selected weights. It ranks the offers, then allocates your target
-    to the highest-ranked offers first, without exceeding listed stock.
-    It provides recommendations only; it does not place orders.
+    How it works: scores combine the entered quality rating and relative affordability. The allocation stops when the target is met or listed stock runs out. This recommendation does not place orders or alter simulation inventory.
   </p>
 </section>
 
 <script>
 (function () {
   const runButton = document.getElementById("run-buyer-strategy");
-
   if (!runButton) return;
-
   runButton.addEventListener("click", function () {
-    const target = Number(
-      document.getElementById("buyer-target").value
-    );
-    const qualityWeight = Number(
-      document.getElementById("quality-weight").value
-    );
+    const target = Number(document.getElementById("buyer-target").value);
+    const qualityWeight = Number(document.getElementById("quality-weight").value);
     const summary = document.getElementById("buyer-summary");
     const tbody = document.getElementById("buyer-results");
-
     const totalUnits = document.getElementById("buyer-total-units");
     const totalCost = document.getElementById("buyer-total-cost");
     const unfilled = document.getElementById("buyer-unfilled");
-
     if (!Number.isInteger(target) || target < 1) {
       summary.textContent = "Enter a whole-number target of at least 1 toy.";
       return;
     }
-
     const rows = Array.from(tbody.querySelectorAll("tr"));
     const offers = [];
     let invalidCount = 0;
-
     rows.forEach(function (row) {
       const price = Number(row.dataset.price);
       const stock = Number(row.dataset.stock);
-      const qualityInput = row.querySelector(".buyer-quality");
-      const quality = Number(qualityInput.value);
-
+      const quality = Number(row.querySelector(".buyer-quality").value);
       row.querySelector(".buyer-rank").textContent = "—";
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
-
-      if (
-        !Number.isFinite(price) ||
-        price <= 0 ||
-        !Number.isFinite(stock) ||
-        stock < 0 ||
-        !Number.isInteger(stock) ||
-        !Number.isInteger(quality) ||
-        quality < 1 ||
-        quality > 10
-      ) {
+      if (!Number.isFinite(price) || price < 0 ||
+          !Number.isInteger(stock) || stock < 0 ||
+          !Number.isInteger(quality) || quality < 1 || quality > 10) {
         invalidCount++;
         row.querySelector(".buyer-score").textContent = "Check data";
         return;
       }
-
       if (stock === 0) {
         row.querySelector(".buyer-score").textContent = "Out of stock";
         return;
       }
-
-      offers.push({
-        row: row,
-        price: price,
-        stock: stock,
-        quality: quality,
-        score: 0
-      });
+      offers.push({row, price, stock, quality, score: 0});
     });
-
-    if (offers.length === 0) {
-      summary.textContent =
-        "No valid in-stock offers are available. Check prices, stock, and quality ratings.";
+    if (!offers.length) {
+      summary.textContent = "No valid in-stock offers are available. Check prices, stock, and quality ratings.";
       totalUnits.textContent = "0";
       totalCost.textContent = "$0.00";
       unfilled.textContent = String(target);
       return;
     }
-
-    const cheapestPrice = Math.min(
-      ...offers.map(function (offer) {
-        return offer.price;
-      })
-    );
-
+    const positivePrices = offers.filter(o => o.price > 0).map(o => o.price);
+    const cheapestPrice = positivePrices.length ? Math.min(...positivePrices) : 0;
     offers.forEach(function (offer) {
       const qualityScore = offer.quality * 10;
-      const affordabilityScore = (cheapestPrice / offer.price) * 100;
-
-      offer.score =
-        (qualityScore * qualityWeight / 100) +
-        (affordabilityScore * (100 - qualityWeight) / 100);
+      const priceScore = offer.price === 0 ? 100 :
+        (cheapestPrice > 0 ? (cheapestPrice / offer.price) * 100 : 0);
+      offer.score = qualityScore * qualityWeight / 100 +
+        priceScore * (100 - qualityWeight) / 100;
     });
-
-    offers.sort(function (a, b) {
-      return b.score - a.score ||
-        a.price - b.price ||
-        b.stock - a.stock;
+    offers.sort((a, b) => b.score - a.score || a.price - b.price ||
+      a.row.dataset.seller.localeCompare(b.row.dataset.seller));
+    let remaining = target;
+    let purchasedUnits = 0;
+    let estimatedCost = 0;
+    offers.forEach(function (offer, index) {
+      const quantity = Math.min(remaining, offer.stock);
+      offer.row.querySelector(".buyer-rank").textContent = String(index + 1);
+      offer.row.querySelector(".buyer-score").textContent = offer.score.toFixed(1);
+      offer.row.querySelector(".buyer-quantity").textContent = String(quantity);
+      remaining -= quantity;
+      purchasedUnits += quantity;
+      estimatedCost += quantity * offer.price;
     });
-
-let remaining = target;
-let purchasedUnits = 0;
-let estimatedCost = 0;
-
-offers.forEach(function (offer, index) {
-  const quantity = Math.min(7, offer.stock);
-
-  offer.row.querySelector(".buyer-rank").textContent =
-    String(index + 1);
-  offer.row.querySelector(".buyer-score").textContent =
-    offer.score.toFixed(1);
-  offer.row.querySelector(".buyer-quantity").textContent =
-    String(quantity);
-
-  remaining -= quantity;
-  purchasedUnits += quantity;
-  estimatedCost += quantity * offer.price;
-});
-
-rows.forEach(function (row) {
-  tbody.appendChild(row);
-});
-
+    const rankedRows = new Set(offers.map(offer => offer.row));
+    offers.forEach(offer => tbody.appendChild(offer.row));
+    rows.filter(row => !rankedRows.has(row)).forEach(row => tbody.appendChild(row));
     totalUnits.textContent = String(purchasedUnits);
     totalCost.textContent = "$" + estimatedCost.toFixed(2);
     unfilled.textContent = String(remaining);
-
-    summary.textContent =
-      "Strategy complete. Recommended " + purchasedUnits +
-      " of " + target + " toys at an estimated cost of $" +
+    summary.textContent = "Recommendation complete: " + purchasedUnits +
+      " of " + target + " requested toys, estimated cost $" +
       estimatedCost.toFixed(2) + ". " +
-      (remaining > 0
-        ? "There is not enough listed stock to meet your target."
-        : "Your target can be met using the listed stock.") +
-      (invalidCount > 0
-        ? " " + invalidCount + " offer(s) need valid data or ratings."
-        : "");
+      (remaining > 0 ? "Listed stock cannot meet the full target." :
+        "The target is met without exceeding any offer's stock.") +
+      (invalidCount > 0 ? " " + invalidCount + " offer(s) have invalid data or ratings." : "");
   });
 })();
 </script>
@@ -412,6 +366,7 @@ rows.forEach(function (row) {
     </p>
 
     <form method="post" action="{{ url_for('run_day') }}">
+      {% if not demo_mode %}<label for="admin_token">Market operator token</label><input id="admin_token" name="admin_token" type="password" required>{% endif %}
       <label for="seed">Random seed (optional)</label>
       <input
         id="seed"
@@ -427,9 +382,9 @@ rows.forEach(function (row) {
     {% if latest %}
     <p class="muted">
       Latest run: Day {{ latest.day }},
-      seed {{ latest.seed }},
+      {% if config.publish_seed %}seed {{ latest.seed }}, {% endif %}
       {{ latest.transactions }} transactions,
-      {{ latest.units_sold }} units,
+      {{ latest.units_sold }} units, {{ latest.no_purchase_count or 0 }} customers bought nothing,
       ${{ "%.2f"|format(latest.revenue) }} revenue.
     </p>
     {% endif %}
@@ -439,6 +394,7 @@ rows.forEach(function (row) {
       action="{{ url_for('reset') }}"
       onsubmit="return confirm('Reset demo inventory and transactions? The audit log is preserved.');"
     >
+      {% if not demo_mode %}<label for="reset_admin_token">Market operator token</label><input id="reset_admin_token" name="admin_token" type="password" required>{% endif %}
       <button class="secondary" type="submit">Reset Demo State</button>
     </form>
 
@@ -449,22 +405,35 @@ rows.forEach(function (row) {
   </div>
 
   <div class="card">
-    <h2>Replay / Compare Seeds</h2>
+    <h2>Replay / Compare Pricing Strategies</h2>
     <p>
-      Compare two seeded runs from the same starting inventory.
-      These comparison runs do not change the live market state.
+      Compare two prices for one selected seller while holding competitor offers,
+      starting virtual inventory, customer profiles, histories, and the random seed
+      constant. Replays never change the official market ledger.
     </p>
 
     <form method="post" action="{{ url_for('replay') }}" class="form-row">
       <div>
-        <label for="seed_a">Seed A</label>
-        <input id="seed_a" name="seed_a" type="number" value="100" required>
+        <label for="strategy_seller_id">Seller to test</label>
+        <select id="strategy_seller_id" name="strategy_seller_id" required>
+          {% for seller_id in offers|map(attribute='seller_id')|unique %}
+          <option value="{{ seller_id }}">{{ seller_id }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div>
-        <label for="seed_b">Seed B</label>
-        <input id="seed_b" name="seed_b" type="number" value="200" required>
+        <label for="replay-seed">Same random seed</label>
+        <input id="replay-seed" name="seed" type="number" value="100" required>
       </div>
-      <button type="submit">Compare Runs</button>
+      <div>
+        <label for="multiplier_a">Strategy A price multiplier</label>
+        <input id="multiplier_a" name="multiplier_a" type="number" min="0.01" max="10" step="0.01" value="1.00" required>
+      </div>
+      <div>
+        <label for="multiplier_b">Strategy B price multiplier</label>
+        <input id="multiplier_b" name="multiplier_b" type="number" min="0.01" max="10" step="0.01" value="0.90" required>
+      </div>
+      <button type="submit">Compare Pricing Strategies</button>
     </form>
   </div>
 </section>

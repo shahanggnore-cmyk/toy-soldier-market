@@ -35,19 +35,40 @@ def _number(value, field, errors, row_num, minimum=None):
         errors.append(f"Row {row_num}: {field} must be numeric.")
         return None
 
+def _parse_bundle_components(raw):
+    """Parse `PRODUCT_ID:COUNT;PRODUCT_ID:COUNT`; blank means a single-product offer."""
+    components = {}
+    raw = str(raw or "").strip()
+    if not raw:
+        return components
+    for part in raw.split(";"):
+        if ":" not in part:
+            raise ValueError("bundle_components must use PRODUCT_ID:COUNT entries separated by semicolons.")
+        product_id, count = part.split(":", 1)
+        product_id = product_id.strip()
+        try:
+            count_value = int(count.strip())
+        except ValueError as exc:
+            raise ValueError("bundle component counts must be positive whole numbers.") from exc
+        if not product_id or count_value < 1:
+            raise ValueError("bundle component IDs must be non-empty and counts must be positive.")
+        components[product_id] = components.get(product_id, 0) + count_value
+    return components
+
 def validate_offers(offers, config):
     errors, warnings = [], []
-    required = ["seller_id", "seller_name", "product_id", "product_name", "unit_price", "quantity", "effective_day"]
-    seen = set()
+    required = ["offer_id", "seller_id", "seller_name", "product_id", "product_name", "unit_price", "quantity", "effective_day", "published_at"]
+    seen_ids = set()
     max_price = float(config.get("max_unit_price", 100000))
     for i, row in enumerate(offers, start=2):
         for field in required:
             if not str(row.get(field, "")).strip():
                 errors.append(f"Row {i}: missing required field '{field}'.")
-        key = (str(row.get("seller_id", "")).strip(), str(row.get("product_id", "")).strip())
-        if key in seen:
-            warnings.append(f"Row {i}: duplicate seller/product pair {key}; the engine treats rows as separate offers.")
-        seen.add(key)
+        offer_id = str(row.get("offer_id", "")).strip()
+        if offer_id and offer_id in seen_ids:
+            errors.append(f"Row {i}: duplicate offer_id '{offer_id}'.")
+        if offer_id:
+            seen_ids.add(offer_id)
         price = _number(row.get("unit_price"), "unit_price", errors, i, 0)
         quantity = _number(row.get("quantity"), "quantity", errors, i, 0)
         day = _number(row.get("effective_day"), "effective_day", errors, i, 1)
@@ -57,53 +78,109 @@ def validate_offers(offers, config):
             errors.append(f"Row {i}: quantity must be a whole number.")
         if day is not None and not day.is_integer():
             errors.append(f"Row {i}: effective_day must be a whole number.")
+        published_at = str(row.get("published_at", "")).strip()
+        if published_at:
+            try:
+                parsed_timestamp = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                if parsed_timestamp.tzinfo is None:
+                    errors.append(f"Row {i}: published_at must include a timezone offset.")
+            except ValueError:
+                errors.append(f"Row {i}: published_at must be an ISO-8601 timestamp with timezone.")
+        try:
+            _parse_bundle_components(row.get("bundle_components", ""))
+        except ValueError as exc:
+            errors.append(f"Row {i}: {exc}")
+    available_products = {(str(o.get("seller_id", "")).strip(), str(o.get("product_id", "")).strip()) for o in offers}
+    for i, row in enumerate(offers, start=2):
+        try:
+            components = _parse_bundle_components(row.get("bundle_components", ""))
+        except ValueError:
+            continue
+        for product_id in components:
+            if (str(row.get("seller_id", "")).strip(), product_id) not in available_products:
+                errors.append(f"Row {i}: bundle component '{product_id}' has no offer/inventory row for this seller.")
     return {"errors": errors, "warnings": warnings, "valid": not errors, "offer_count": len(offers)}
 
-def _offer_id(row, index):
-    return f"{row.get('seller_id','')}-{row.get('product_id','')}-{index}"
+def _offer_key(row, index):
+    # Prefer a stable explicit offer_id; fallback is stable row identity for legacy CSVs.
+    return str(row.get("offer_id") or f"{row.get('seller_id','')}::{row.get('product_id','')}::{index}")
 
-def _customer_population(config, rng):
+def _new_customer(customer_id, customer_type):
+    return {
+        "buyer_id": customer_id,
+        "type": customer_type.get("name", "standard"),
+        "budget": float(customer_type.get("budget", 100)),
+        "product_values": dict(customer_type.get("product_values", {})),
+        "value_multiplier": float(customer_type.get("value_multiplier", 1)),
+        "loyalty_bonus": float(customer_type.get("loyalty_bonus", 0)),
+        "quantity_cap": max(1, int(customer_type.get("quantity_cap", 1))),
+        "purchase_probability": min(1.0, max(0.0, float(customer_type.get("purchase_probability", 1)))),
+        "search_limit": max(1, int(customer_type.get("search_limit", 999999))),
+        "inconvenience_cost": max(0.0, float(customer_type.get("inconvenience_cost", 0))),
+        "preferred_product_ids": list(customer_type.get("preferred_product_ids", [])),
+        "advertising_lift": min(1.0, max(0.0, float(customer_type.get("advertising_lift", 0)))),
+    }
+
+def _customer_population(config, rng, customer_profiles=None):
+    """Return daily customers plus updated private profiles.
+
+    Returning customers keep their type and ID; their daily budget renews according
+    to this classroom model. Profiles remain in private state and never in public exports.
+    """
     types = config.get("customer_types", [])
-    count = int(config.get("customers_per_day", 30))
+    count = max(0, int(config.get("customers_per_day", 30)))
+    if not types:
+        types = [{"name": "standard", "weight": 1, "budget": 100,
+                  "product_values": {}, "value_multiplier": 1}]
+    weights = [max(0.0, float(t.get("weight", 1))) for t in types]
+    if sum(weights) <= 0:
+        weights = [1.0] * len(types)
+    existing = list((customer_profiles or {}).values())
+    returning_fraction = min(1.0, max(0.0, float(config.get("returning_customer_fraction", 0.5))))
+    returning_count = min(len(existing), int(round(count * returning_fraction))) if existing else 0
+    returning = rng.sample(existing, returning_count) if returning_count else []
     customers = []
-    total_weights = sum(max(0, float(t.get("weight", 1))) for t in types) or 1
-    for i in range(count):
-        roll = rng.random() * total_weights
-        selected = types[-1] if types else {"name":"standard","weight":1,"budget":100,"price_sensitivity":1,"value_multiplier":1,"loyalty_bonus":0}
-        cumulative = 0
-        for t in types:
-            cumulative += max(0, float(t.get("weight", 1)))
-            if roll <= cumulative:
-                selected = t
-                break
-        budget = float(selected.get("budget", 100))
-        customers.append({
-            "buyer_id": f"D{i+1:04d}",
-            "type": selected.get("name", "standard"),
-            "budget": budget,
-            "price_sensitivity": float(selected.get("price_sensitivity", 1)),
-            "value_multiplier": float(selected.get("value_multiplier", 1)),
-            "loyalty_bonus": float(selected.get("loyalty_bonus", 0)),
-            "preferred_seller": selected.get("preferred_seller", ""),
-            "quantity_cap": int(selected.get("quantity_cap", 1)),
-            "purchase_probability": float(selected.get("purchase_probability", 0.8)),
-        })
-    return customers
+    updated_profiles = dict(customer_profiles or {})
+    for profile in returning:
+        c = dict(profile)
+        # Budget renewal is an explicit daily model rule.
+        c["budget_remaining"] = float(c["budget"])
+        customers.append(c)
+    next_num = max([int(str(k).replace("C", "")) for k in updated_profiles if str(k).startswith("C") and str(k)[1:].isdigit()] or [0]) + 1
+    for _ in range(count - len(returning)):
+        chosen = rng.choices(types, weights=weights, k=1)[0]
+        c = _new_customer(f"C{next_num:05d}", chosen)
+        next_num += 1
+        c["budget_remaining"] = float(c["budget"])
+        updated_profiles[c["buyer_id"]] = dict(c)
+        customers.append(c)
+    for c in customers:
+        updated_profiles[c["buyer_id"]] = {k: v for k, v in c.items() if k != "budget_remaining"}
+    rng.shuffle(customers)
+    return customers, updated_profiles
 
-def _offer_stock(row, inventory, index):
-    key = f"{row.get('seller_id')}::{row.get('product_id')}::{index}"
-    if key in inventory:
-        return int(inventory[key])
-    try:
-        return int(float(row.get("quantity", 0)))
-    except (TypeError, ValueError):
-        return 0
+def _customer_value(customer, offer, config):
+    product_id = str(offer.get("product_id", ""))
+    # Type-specific explicit values override the global fallback model.
+    if product_id in customer.get("product_values", {}):
+        value = float(customer["product_values"][product_id])
+    else:
+        value = float(config.get("product_values", {}).get(
+            product_id, config.get("default_product_value", 25)
+        )) * float(customer.get("value_multiplier", 1))
+    if customer.get("preferred_product_ids") and product_id in customer["preferred_product_ids"]:
+        value += float(config.get("preferred_product_bonus", 0))
+    return value
 
-def run_market_day(offers, config, inventory, day, seed):
+def run_market_day(offers, config, inventory, day, seed, customer_profiles=None, customer_history=None):
+    """Run one virtual market day. Never reads or modifies physical seller stock."""
     rng = random.Random(seed)
+    # Keep tie-breaking on a separate deterministic stream so a pricing change
+    # cannot shift the later customers' search/order random draws.
+    tie_rng = random.Random(seed ^ 0x9E3779B9)
     run_id = str(uuid.uuid4())[:8]
-    before = dict(inventory)
-    stock = dict(inventory)
+    before = dict(inventory or {})
+    stock = dict(inventory or {})
     offer_rows = []
     for idx, row in enumerate(offers):
         try:
@@ -114,54 +191,125 @@ def run_market_day(offers, config, inventory, day, seed):
             continue
         if effective_day > day:
             continue
-        key = f"{row.get('seller_id')}::{row.get('product_id')}::{idx}"
+        key = _offer_key(row, idx)
         if key not in stock:
             stock[key] = initial_quantity
-        offer_rows.append({**row, "_idx":idx, "_key":key, "_price":price})
-    customers = _customer_population(config, rng)
-    rng.shuffle(customers)
+        offer_rows.append({**row, "_idx": idx, "_key": key, "_price": price})
+    # Build component inventory lookup for bundles; component stock is shared
+    # with the seller's single-product offers and cannot be deducted twice.
+    component_rows = {}
+    for offer in offer_rows:
+        component_rows.setdefault((str(offer.get("seller_id", "")), str(offer.get("product_id", ""))), []).append(offer)
+    # Include first-day offer stock in the recorded opening ledger.
+    before = dict(stock)
+    profiles = customer_profiles or {}
+    history = {k: dict(v) for k, v in (customer_history or {}).items()}
+    customers, profiles_after = _customer_population(config, rng, profiles)
+    # One purchase maximum per customer is enforced by processing each customer once.
     transactions = []
     no_purchase = 0
+    ad = config.get("advertising", {}) or {}
+    ad_seller = str(ad.get("seller_id", ""))
+    ad_lift = min(1.0, max(0.0, float(ad.get("consideration_probability_lift", 0))))
     for customer in customers:
         if rng.random() > customer["purchase_probability"]:
             no_purchase += 1
             continue
+        # Customers inspect a limited, randomized subset of sellers if their type has limited search.
+        seller_ids = list(dict.fromkeys(o.get("seller_id", "") for o in offer_rows))
+        rng.shuffle(seller_ids)
+        visible_sellers = set(seller_ids[:customer["search_limit"]])
+        if ad_seller and ad_lift > 0 and rng.random() < ad_lift:
+            visible_sellers.add(ad_seller)
         choices = []
         for offer in offer_rows:
+            if offer.get("seller_id", "") not in visible_sellers:
+                continue
             available = int(stock.get(offer["_key"], 0))
             if available <= 0:
                 continue
-            price = offer["_price"]
-            if price < 0 or price > customer["budget"]:
+            try:
+                bundle_components = _parse_bundle_components(offer.get("bundle_components", ""))
+            except ValueError:
                 continue
-            # Configurable utility model: perceived value less price, with optional seller loyalty bonus.
-            product_values = config.get("product_values", {})
-            base_value = float(product_values.get(offer.get("product_id", ""), config.get("default_product_value", 25)))
-            perceived = base_value * customer["value_multiplier"]
-            loyalty = customer["loyalty_bonus"] if customer["preferred_seller"] == offer.get("seller_id") else 0
-            utility = perceived - price * customer["price_sensitivity"] + loyalty
-            if utility >= float(config.get("minimum_utility", 0)):
+            component_capacity = available
+            components_available = True
+            for component_id, units_per_bundle in bundle_components.items():
+                component_offers = component_rows.get((str(offer.get("seller_id", "")), component_id), [])
+                component_stock = sum(int(stock.get(component["_key"], 0)) for component in component_offers)
+                if component_stock < units_per_bundle:
+                    components_available = False
+                    break
+                component_capacity = min(component_capacity, component_stock // units_per_bundle)
+            if not components_available:
+                continue
+            price = offer["_price"]
+            if price < 0 or price > float(customer.get("budget_remaining", customer["budget"])):
+                continue
+            # Optional eligibility fields: eligible_customer_types is a semicolon-separated list.
+            eligible = str(offer.get("eligible_customer_types", "")).strip()
+            if eligible and customer["type"] not in {x.strip() for x in eligible.split(";")}:
+                continue
+            value = _customer_value(customer, offer, config)
+            seller_history = history.get(customer["buyer_id"], {})
+            previous_count = int(seller_history.get(offer.get("seller_id", ""), 0))
+            loyalty = float(customer.get("loyalty_bonus", 0)) if previous_count > 0 else 0.0
+            # Inconvenience is explicit and may be increased for sellers not in a customer's known history.
+            inconvenience = float(customer.get("inconvenience_cost", 0))
+            if config.get("switching_cost", 0) and seller_history and previous_count == 0:
+                inconvenience += float(config.get("switching_cost", 0))
+            # Advertising only changes consideration, never utility or purchase guarantee.
+            utility = value - price + loyalty - inconvenience
+            if utility > float(config.get("minimum_utility", 0)):
                 choices.append((utility, offer))
         if not choices:
             no_purchase += 1
             continue
-        # Random tie-break among exact utility matches; stable seed makes it reproducible.
         best_utility = max(x[0] for x in choices)
-        best = [o for u, o in choices if abs(u-best_utility) < 1e-9]
-        chosen = rng.choice(best)
-        qty = min(int(stock[chosen["_key"]]), customer["quantity_cap"], max(1, int(customer["budget"] // chosen["_price"])) if chosen["_price"] > 0 else customer["quantity_cap"])
+        best = [o for u, o in choices if abs(u - best_utility) < 1e-9]
+        chosen = tie_rng.choice(best)
+        available = int(stock[chosen["_key"]])
+        price = float(chosen["_price"])
+        bundle_components = _parse_bundle_components(chosen.get("bundle_components", ""))
+        qty = min(available, int(customer["quantity_cap"]))
+        for component_id, units_per_bundle in bundle_components.items():
+            component_offers = component_rows.get((str(chosen.get("seller_id", "")), component_id), [])
+            component_stock = sum(int(stock.get(component["_key"], 0)) for component in component_offers)
+            qty = min(qty, component_stock // units_per_bundle)
+        # One purchase can be a single item or one/more advertised bundles; never exceed budget.
+        if price > 0:
+            qty = min(qty, int(float(customer.get("budget_remaining", customer["budget"])) // price))
         if qty <= 0:
             no_purchase += 1
             continue
-        total = round(qty * chosen["_price"], 2)
+        total = round(qty * price, 2)
         stock[chosen["_key"]] -= qty
+        component_deductions = {}
+        for component_id, units_per_bundle in bundle_components.items():
+            remaining_component_units = qty * units_per_bundle
+            component_offers = component_rows.get((str(chosen.get("seller_id", "")), component_id), [])
+            for component in component_offers:
+                take = min(remaining_component_units, int(stock.get(component["_key"], 0)))
+                if take:
+                    stock[component["_key"]] -= take
+                    remaining_component_units -= take
+                if remaining_component_units <= 0:
+                    break
+            component_deductions[component_id] = qty * units_per_bundle
+        customer["budget_remaining"] = round(float(customer.get("budget_remaining", customer["budget"])) - total, 2)
+        history.setdefault(customer["buyer_id"], {})
+        history[customer["buyer_id"]][chosen.get("seller_id", "")] = int(history[customer["buyer_id"]].get(chosen.get("seller_id", ""), 0)) + 1
         transactions.append({
             "run_id": run_id, "day": day, "seed": seed, "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "buyer_id": customer["buyer_id"], "buyer_type": customer["type"],
             "seller_id": chosen.get("seller_id"), "seller_name": chosen.get("seller_name"),
             "product_id": chosen.get("product_id"), "product_name": chosen.get("product_name"),
-            "quantity": qty, "unit_price": round(chosen["_price"], 2), "total_price": total,
-            "utility": round(best_utility, 4), "remaining_offer_stock": stock[chosen["_key"]]
+            "offer_id": chosen.get("offer_id") or chosen["_key"],
+            "bundle_components": chosen.get("bundle_components", ""),
+            "component_units_deducted": component_deductions,
+            "quantity": qty, "unit_price": round(price, 2), "total_price": total,
+            "utility": round(best_utility, 4), "remaining_offer_stock": stock[chosen["_key"]],
+            "remaining_budget": customer["budget_remaining"],
         })
     units = sum(int(t["quantity"]) for t in transactions)
     revenue = sum(float(t["total_price"]) for t in transactions)
@@ -170,16 +318,15 @@ def run_market_day(offers, config, inventory, day, seed):
         "buyers": len(customers), "transactions": transactions, "transaction_count": len(transactions),
         "no_purchase_count": no_purchase, "units_sold": units, "revenue": round(revenue, 2),
         "inventory_before": before, "inventory_after": stock,
+        "customer_profiles_after": profiles_after, "customer_history_after": history,
         "offer_file_sha256": hashlib.sha256(json.dumps(offers, sort_keys=True).encode()).hexdigest(),
         "rules_sha256": hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
     }
 
 def aggregate_transactions(transactions):
-    sellers = {}
-    products = {}
+    sellers, products = {}, {}
     for t in transactions:
-        s = t.get("seller_id", "unknown")
-        p = t.get("product_id", "unknown")
+        s, p = t.get("seller_id", "unknown"), t.get("product_id", "unknown")
         sellers.setdefault(s, {"seller_id":s, "seller_name":t.get("seller_name", s), "transactions":0, "units":0, "revenue":0.0})
         sellers[s]["transactions"] += 1
         sellers[s]["units"] += int(t.get("quantity", 0))
@@ -199,61 +346,100 @@ def aggregate_transactions(transactions):
         "by_product": sorted(products.values(), key=lambda x:x["product_id"]),
     }
 
-def replay_runs(offers, config, inventory, seed_a, seed_b):
-    a = run_market_day(offers, config, inventory, day=1, seed=seed_a)
-    b = run_market_day(offers, config, inventory, day=1, seed=seed_b)
-    summary_a = {"transactions":a["transaction_count"],"units_sold":a["units_sold"],"revenue":a["revenue"]}
-    summary_b = {"transactions":b["transaction_count"],"units_sold":b["units_sold"],"revenue":b["revenue"]}
+def public_transaction(transaction):
+    """Remove individual customer identity, type, private utility and budget from public output."""
+    private = {"buyer_id", "buyer_type", "utility", "remaining_budget", "seed"}
+    return {k: v for k, v in transaction.items() if k not in private}
+
+def public_run(run, publish_seed=False):
+    """Return public aggregate fields; omit exact seeds unless explicitly approved."""
+    allowed = ("run_id", "day", "timestamp_utc", "transactions", "buyers",
+               "units_sold", "revenue", "no_purchase_count",
+               "inventory_before", "inventory_after")
+    result = {k: run[k] for k in allowed if k in run}
+    if publish_seed and "seed" in run:
+        result["seed"] = run["seed"]
+    return result
+
+def replay_runs(offers, config, inventory, seed_a, seed_b, customer_profiles=None,
+                customer_history=None, day=1, strategy_seller_id=None,
+                multiplier_a=1.0, multiplier_b=1.0):
+    """Compare two price strategies from the same starting state and customer draws.
+
+    Only the selected seller's price is adjusted. All competitor offers remain fixed.
+    Passing the same seed for A and B ensures common customer draws/order/tie-break stream.
+    """
+    multiplier_a = float(multiplier_a)
+    multiplier_b = float(multiplier_b)
+    if not (0 < multiplier_a <= 10 and 0 < multiplier_b <= 10):
+        raise ValueError("Price multipliers must be greater than 0 and at most 10.")
+    base_offers = [dict(row) for row in offers]
+    def adjusted(multiplier):
+        result = [dict(row) for row in base_offers]
+        for row in result:
+            if not strategy_seller_id or str(row.get("seller_id", "")) == str(strategy_seller_id):
+                row["unit_price"] = str(round(float(row["unit_price"]) * multiplier, 2))
+        return result
+    offers_a, offers_b = adjusted(multiplier_a), adjusted(multiplier_b)
+    start_inventory = dict(inventory or {})
+    start_profiles = dict(customer_profiles or {})
+    start_history = dict(customer_history or {})
+    a = run_market_day(offers_a, config, dict(start_inventory), day, seed_a,
+                       start_profiles, start_history)
+    b = run_market_day(offers_b, config, dict(start_inventory), day, seed_b,
+                       start_profiles, start_history)
+    summary_a = {"transactions":a["transaction_count"],"units_sold":a["units_sold"],
+                 "revenue":a["revenue"],"no_purchase_count":a["no_purchase_count"]}
+    summary_b = {"transactions":b["transaction_count"],"units_sold":b["units_sold"],
+                 "revenue":b["revenue"],"no_purchase_count":b["no_purchase_count"]}
     return {
         "replay_id": str(uuid.uuid4())[:8], "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-        "seed_a": seed_a, "seed_b": seed_b, "summary_a": summary_a, "summary_b": summary_b,
-        "transactions_a": a["transactions"], "transactions_b": b["transactions"],
-        "inventory_note": "Both runs use the same starting inventory and are comparison-only; neither changes the live market state."
+        "seed_a": seed_a, "seed_b": seed_b, "strategy_seller_id": strategy_seller_id or "ALL",
+        "multiplier_a": multiplier_a, "multiplier_b": multiplier_b,
+        "summary_a": summary_a, "summary_b": summary_b,
+        "transactions_a": [public_transaction(t) for t in a["transactions"]],
+        "transactions_b": [public_transaction(t) for t in b["transactions"]],
+        "inventory_after_a": a["inventory_after"], "inventory_after_b": b["inventory_after"],
+        "inventory_note": "Both runs use independent copies of the same starting inventory, customer profiles, and histories. Competitor prices are held fixed when a seller is selected. Neither run changes the live market state."
     }
-    
-def recommend_buys(offers, config, target_units=None):
-    """Rank seller offers for the buyer team without changing market state."""
-    product_values = config.get("product_values", {})
-    default_value = float(config.get("default_product_value", 25))
-    recommendations = []
 
-    for offer in offers:
+def recommend_buys(offers, config, target_units=None, qualities=None, quality_weight=60):
+    """Supplementary offer-ranking tool; never modifies the simulation ledger."""
+    qualities = qualities or {}
+    target = max(0, int(target_units or 0))
+    quality_weight = min(100, max(0, int(quality_weight)))
+    recommendations = []
+    valid = []
+    for index, offer in enumerate(offers):
         try:
             price = float(offer["unit_price"])
-            quantity = int(float(offer["quantity"]))
-            product_id = offer["product_id"]
-            value = float(product_values.get(product_id, default_value))
+            quantity = max(0, int(float(offer["quantity"])))
+            quality = int(qualities.get(str(index), qualities.get(str(offer.get("offer_id", "")), 5)))
+            if price < 0 or quantity < 0 or not 1 <= quality <= 10:
+                continue
         except (KeyError, TypeError, ValueError):
             continue
-
-        if price <= 0 or quantity <= 0:
+        if quantity == 0:
             continue
-
-        # Higher value per dollar ranks better.
-        score = value / price
-
+        valid.append((index, offer, price, quantity, quality))
+    if not valid:
+        return []
+    cheapest = min(x[2] for x in valid if x[2] > 0) if any(x[2] > 0 for x in valid) else 0
+    for index, offer, price, quantity, quality in valid:
+        qscore = quality * 10
+        pscore = (cheapest / price * 100) if price > 0 and cheapest > 0 else (100 if price == 0 else 0)
+        score = qscore * quality_weight / 100 + pscore * (100-quality_weight) / 100
         recommendations.append({
-            "seller_id": offer.get("seller_id", ""),
-            "seller_name": offer.get("seller_name", ""),
-            "product_id": product_id,
-            "product_name": offer.get("product_name", ""),
-            "unit_price": price,
-            "available_quantity": quantity,
-            "value_per_dollar": round(score, 3),
-            "recommended_quantity": (
-                min(quantity, int(target_units))
-                if target_units is not None and int(target_units) > 0
-                else 0
-            ),
+            "index": index, "seller_id": offer.get("seller_id", ""),
+            "seller_name": offer.get("seller_name", ""), "product_id": offer.get("product_id", ""),
+            "product_name": offer.get("product_name", ""), "unit_price": price,
+            "available_quantity": quantity, "quality": quality, "score": round(score, 1),
+            "recommended_quantity": 0,
         })
-
-    recommendations.sort(
-        key=lambda item: (
-            -item["value_per_dollar"],
-            item["unit_price"],
-            -item["available_quantity"],
-        )
-    )
-
+    recommendations.sort(key=lambda x: (-x["score"], x["unit_price"], x["seller_id"]))
+    remaining = target
+    for item in recommendations:
+        quantity = min(remaining, item["available_quantity"])
+        item["recommended_quantity"] = quantity
+        remaining -= quantity
     return recommendations
-

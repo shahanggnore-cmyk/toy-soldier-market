@@ -1,12 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card"><a href="{{ url_for('index') }}">← Back to market</a><h2>Seeded replay comparison</h2>
-<p>{{ result.inventory_note }}</p>
-<div class="grid two">
-  <div class="card inset"><h3>Seed A: {{ result.seed_a }}</h3><div class="metrics"><div><strong>{{ result.summary_a.transactions }}</strong><span>transactions</span></div><div><strong>{{ result.summary_a.units_sold }}</strong><span>units sold</span></div><div><strong>${{ "%.2f"|format(result.summary_a.revenue) }}</strong><span>revenue</span></div></div></div>
-  <div class="card inset"><h3>Seed B: {{ result.seed_b }}</h3><div class="metrics"><div><strong>{{ result.summary_b.transactions }}</strong><span>transactions</span></div><div><strong>{{ result.summary_b.units_sold }}</strong><span>units sold</span></div><div><strong>${{ "%.2f"|format(result.summary_b.revenue) }}</strong><span>revenue</span></div></div></div>
-</div>
-<h3>Interpretation reminder</h3><p>Differences may reflect randomized buyer order and tie-breaking. For a defensible comparison, hold offers, rules, and starting inventory constant and change only the parameter being studied. Save the seeds and input-file hashes with the report.</p>
-<p><strong>Replay ID:</strong> {{ result.replay_id }}</p>
+<section class="card">
+  <a href="{{ url_for('index') }}">← Back to market</a>
+  <h2>Pricing strategy replay comparison</h2>
+  <p>{{ result.inventory_note }}</p>
+  <p><strong>Seller tested:</strong> {{ result.strategy_seller_id }} |
+     <strong>Common random seed:</strong> {{ result.seed_a }} |
+     <strong>Replay ID:</strong> {{ result.replay_id }}</p>
+  <div class="grid two">
+    <div class="card inset">
+      <h3>Strategy A</h3>
+      <p>Price multiplier: {{ "%.2f"|format(result.multiplier_a) }}×</p>
+      <div class="metrics">
+        <div><strong>{{ result.summary_a.transactions }}</strong><span>transactions</span></div>
+        <div><strong>{{ result.summary_a.units_sold }}</strong><span>units sold</span></div>
+        <div><strong>${{ "%.2f"|format(result.summary_a.revenue) }}</strong><span>simulated revenue</span></div>
+        <div><strong>{{ result.summary_a.no_purchase_count }}</strong><span>bought nothing</span></div>
+      </div>
+    </div>
+    <div class="card inset">
+      <h3>Strategy B</h3>
+      <p>Price multiplier: {{ "%.2f"|format(result.multiplier_b) }}×</p>
+      <div class="metrics">
+        <div><strong>{{ result.summary_b.transactions }}</strong><span>transactions</span></div>
+        <div><strong>{{ result.summary_b.units_sold }}</strong><span>units sold</span></div>
+        <div><strong>${{ "%.2f"|format(result.summary_b.revenue) }}</strong><span>simulated revenue</span></div>
+        <div><strong>{{ result.summary_b.no_purchase_count }}</strong><span>bought nothing</span></div>
+      </div>
+    </div>
+  </div>
+  <h3>Interpretation reminder</h3>
+  <p>Both runs use the same seed, customer starting state, and opening virtual inventory. Only the selected seller's price changes; competitors' submitted offers stay fixed. A replay is comparison-only and does not alter the live market ledger. Compare outcomes such as units sold, revenue, and customers who bought nothing; do not assume a lower price always maximizes revenue.</p>
 </section>
 {% endblock %}

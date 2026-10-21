@@ -25,15 +25,16 @@ python app.py
 
 - `data/sellers.json`: replace sample sellers with official team names, descriptions, and URLs.
 - `data/announcements.json`: add official announcements.
-- `data/rules.json`: replace cutoff, results release, timezone, customer mix, product values, and all other parameters with instructor-approved values.
+- `data/rules.json`: replace cutoff, results release, timezone, customer mix, product values, advertising outcome, and all other parameters with instructor-approved values. The included values are demonstration assumptions only.
 - `data/offers.csv`: replace sample offers with the agreed official offer file.
 - `PRICE_FILE_SPEC.md`: review the proposed CSV schema with the instructor before requiring sellers to use it.
+- `CUSTOMER_MODEL.md`: review the customer utility, loyalty, search, and budget-renewal model with the instructor.
 
 ## Main features
 
 - `/` — market home, seller directory, schedule/rules, offers, validation, run controls, aggregate results.
 - `/run` — run next simulated day; existing inventory is carried forward.
-- `/replay` — compare two seeds using the same starting inventory without mutating the market state.
+- `/replay` — compare two prices for one selected seller with a common seed and identical starting inventory/customer history; competitor offers remain fixed and the official ledger is not changed.
 - `/api/results` — JSON results endpoint.
 - `/health` — health check.
 - Download links — transactions CSV, results JSON, audit JSONL.
@@ -49,12 +50,12 @@ python -m unittest discover -s tests -v
 ## Important limitations to resolve before submission
 
 - The default customer types and values are examples only; the instructor must approve the behavioral model.
-- The app does not automatically enforce the real-world offer cutoff or scheduled release time.
-- The starter supports one product per offer row, not arbitrary bundles or every multi-product pricing structure.
+- The app records offer timestamps but does not automatically enforce the real-world cutoff/results-release schedule or fetch live offers from seller websites.
+- Bundle offers are supported through `bundle_components`; complex multi-product pricing schemes beyond this schema still require instructor-approved changes.
 - `data/state.json` is a local JSON store, not a multi-user database. It is unsuitable for concurrent production traffic.
-- The reset route is not protected by authentication. Do not expose it publicly without access control.
+- Demo mode allows local classroom controls. Before scored/public operation, set `MARKET_MODE=live`, configure a strong `ADMIN_TOKEN` and `SECRET_KEY`, use persistent storage, and review security/CSRF controls.
 - The local Flask server is not a public URL. Deployment to a host, environment variables, persistent storage, and a security review are required.
-- Public audit/result endpoints should be reviewed for privacy and course policy before sharing.
+- Public transaction CSV/JSON exports omit buyer IDs, buyer types, utilities, individual remaining budgets, and exact random seeds by default. Keep `data/state.json` and `reports/` private; the server-side audit log retains full seed details for the instructor.
 - Validate all economic assumptions and report results transparently; do not present simulated values as real market data.
 
 ## Suggested final submission package
