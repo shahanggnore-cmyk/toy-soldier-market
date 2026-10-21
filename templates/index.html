@@ -326,8 +326,7 @@ const quality = Number(qualityInput.value);
       offer.score = qualityScore * qualityWeight / 100 +
         priceScore * (100 - qualityWeight) / 100;
     });
-    offers.sort((a, b) => b.score - a.score || a.price - b.price ||
-      a.row.dataset.seller.localeCompare(b.row.dataset.seller));
+   offers.sort((a, b) => b.score - a.score || a.price - b.price);
     let remaining = target;
 let purchasedUnits = 0;
 let estimatedCost = 0;
