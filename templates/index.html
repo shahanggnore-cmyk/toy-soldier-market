@@ -153,7 +153,17 @@
         <tr>
           <td>{{ o.seller_name }} ({{ o.seller_id }})</td>
           <td>{{ o.product_name }} ({{ o.product_id }})</td>
-          <td>${{ o.unit_price }}</td>
+          <td>
+  <input
+    class="buyer-price"
+    type="number"
+    min="0"
+    step="0.01"
+    value="{{ o.unit_price }}"
+    aria-label="Price for {{ o.product_name }} from {{ o.seller_name }}"
+    style="width:85px"
+  >
+</td>
           <td>{{ o.quantity }}</td>
           <td>{{ o.effective_day }}</td>
         </tr>
@@ -290,7 +300,7 @@
     const offers = [];
     let invalidCount = 0;
     rows.forEach(function (row) {
-      const price = Number(row.dataset.price);
+      const price = Number(row.querySelector(".buyer-price").value);
       const stock = Number(row.dataset.stock);
   const qualityInput = row.querySelector(".buyer-quality");
 const quality = Number(qualityInput.value);
