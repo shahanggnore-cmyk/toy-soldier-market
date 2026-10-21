@@ -10,7 +10,27 @@
   "product_values": {},
   "customer_types": [
     {
-      "name": "standard",
+      "name": "bargain_hunter",
+      "weight": 1,
+      "budget": 10,
+      "price_sensitivity": 2,
+      "value_multiplier": 0.8,
+      "loyalty_bonus": 0,
+      "quantity_cap": 1,
+      "purchase_probability": 0.8
+    },
+    {
+      "name": "collector",
+      "weight": 1,
+      "budget": 30,
+      "price_sensitivity": 0.7,
+      "value_multiplier": 1.5,
+      "loyalty_bonus": 0.5,
+      "quantity_cap": 1,
+      "purchase_probability": 0.8
+    },
+    {
+      "name": "convenience_shopper",
       "weight": 1,
       "budget": 20,
       "price_sensitivity": 1,
