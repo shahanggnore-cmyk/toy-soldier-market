@@ -396,9 +396,7 @@ offers.forEach(function (offer, index) {
   purchasedUnits += quantity;
   estimatedCost += quantity * offer.price;
 });
-    const rankedRows = new Set(offers.map(offer => offer.row));
-    offers.forEach(offer => tbody.appendChild(offer.row));
-    rows.filter(row => !rankedRows.has(row)).forEach(row => tbody.appendChild(row));
+    
     totalUnits.textContent = String(purchasedUnits);
     totalCost.textContent = "$" + estimatedCost.toFixed(2);
     unfilled.textContent = String(remaining);
