@@ -326,14 +326,17 @@ const quality = qualityInput ? Number(qualityInput.value) : NaN;
     }
     const positivePrices = offers.filter(o => o.price > 0).map(o => o.price);
     const cheapestPrice = positivePrices.length ? Math.min(...positivePrices) : 0;
-    offers.forEach(function (offer) {
-      const qualityScore = offer.quality * 10;
-      const priceScore = offer.price === 0 ? 100 :
-        (cheapestPrice > 0 ? (cheapestPrice / offer.price) * 100 : 0);
-      offer.score = qualityScore * qualityWeight / 100 +
-        priceScore * (100 - qualityWeight) / 100;
-    });
-   offers.sort((a, b) => b.score - a.score || a.price - b.price);
+   offers.forEach(function (offer) {
+  const qualityScore = (offer.quality / 10) * 100;
+  const priceScore = offer.price === 0 ? 100 :
+    (cheapestPrice > 0 ? (cheapestPrice / offer.price) * 100 : 0);
+
+  offer.score = qualityScore * 0.5 + priceScore * 0.5;
+});
+
+offers.sort((a, b) =>
+  b.score - a.score || b.quality - a.quality || a.price - b.price
+);
     let remaining = target;
 let purchasedUnits = 0;
 let estimatedCost = 0;
