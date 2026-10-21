@@ -292,7 +292,8 @@
     rows.forEach(function (row) {
       const price = Number(row.dataset.price);
       const stock = Number(row.dataset.stock);
-      const quality = Number(row.querySelector(".buyer-quality").value);
+     const qualityInput = row.querySelector(".buyer-quality");
+const quality = Number(qualityInput.value);
       row.querySelector(".buyer-rank").textContent = "—";
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
