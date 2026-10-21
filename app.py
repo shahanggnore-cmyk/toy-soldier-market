@@ -192,6 +192,36 @@ def download_audit():
 @app.route("/api/results")
 def api_results():
     return jsonify(_public_state_summary(get_state()))
+    @app.route("/api/offers")
+def api_offers():
+    config = load_config(DATA)
+    offers = get_offers()
+    validation = validate_offers(offers, config)
+
+    if validation["errors"]:
+        return jsonify({
+            "error": "Offer data is invalid",
+            "offers": []
+        }), 503
+
+    public_fields = [
+        "seller_id",
+        "seller_name",
+        "product_id",
+        "product_name",
+        "unit_price",
+        "quantity",
+        "offer_id",
+        "eligibility",
+        "timestamp"
+    ]
+
+    return jsonify({
+        "offers": [
+            {key: offer[key] for key in public_fields if key in offer}
+            for offer in offers
+        ]
+    })
 
 @app.route("/replay", methods=["POST"])
 def replay():
