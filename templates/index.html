@@ -153,17 +153,7 @@
         <tr>
           <td>{{ o.seller_name }} ({{ o.seller_id }})</td>
           <td>{{ o.product_name }} ({{ o.product_id }})</td>
-          <td>
-  <input
-    class="buyer-price"
-    type="number"
-    min="0"
-    step="0.01"
-    value="{{ o.unit_price }}"
-    aria-label="Price for {{ o.product_name }} from {{ o.seller_name }}"
-    style="width:85px"
-  >
-</td>
+          <td>${{ o.unit_price }}</td>
           <td>{{ o.quantity }}</td>
           <td>{{ o.effective_day }}</td>
         </tr>
