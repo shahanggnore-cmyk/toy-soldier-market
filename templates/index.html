@@ -328,17 +328,74 @@
     offers.sort((a, b) => b.score - a.score || a.price - b.price ||
       a.row.dataset.seller.localeCompare(b.row.dataset.seller));
     let remaining = target;
-    let purchasedUnits = 0;
-    let estimatedCost = 0;
-    offers.forEach(function (offer, index) {
-      const quantity = Math.min(remaining, offer.stock);
-      offer.row.querySelector(".buyer-rank").textContent = String(index + 1);
-      offer.row.querySelector(".buyer-score").textContent = offer.score.toFixed(1);
-      offer.row.querySelector(".buyer-quantity").textContent = String(quantity);
-      remaining -= quantity;
-      purchasedUnits += quantity;
-      estimatedCost += quantity * offer.price;
+let purchasedUnits = 0;
+let estimatedCost = 0;
+
+// Group offers with equal scores and prices.
+let index = 0;
+
+while (index < offers.length) {
+  let end = index + 1;
+
+  while (
+    end < offers.length &&
+    Math.abs(offers[end].score - offers[index].score) < 0.000001 &&
+    offers[end].price === offers[index].price
+  ) {
+    end++;
+  }
+
+  const tiedOffers = offers.slice(index, end);
+
+  // Split the remaining target evenly among tied offers,
+  // respecting each seller's available stock.
+  let active = tiedOffers.filter(offer => offer.stock > 0);
+
+  while (remaining > 0 && active.length > 0) {
+    const share = Math.max(1, Math.floor(remaining / active.length));
+    let allocatedThisRound = 0;
+
+    active.forEach(function (offer) {
+      const current = Number(
+        offer.row.querySelector(".buyer-quantity").textContent
+      ) || 0;
+
+      const available = offer.stock - current;
+      const quantity = Math.min(share, available, remaining - allocatedThisRound);
+
+      if (quantity > 0) {
+        offer.row.querySelector(".buyer-quantity").textContent =
+          String(current + quantity);
+        allocatedThisRound += quantity;
+      }
     });
+
+    remaining -= allocatedThisRound;
+
+    active = active.filter(offer => {
+      const current = Number(
+        offer.row.querySelector(".buyer-quantity").textContent
+      ) || 0;
+      return current < offer.stock;
+    });
+
+    if (allocatedThisRound === 0) break;
+  }
+
+  index = end;
+}
+
+offers.forEach(function (offer, index) {
+  const quantity = Number(
+    offer.row.querySelector(".buyer-quantity").textContent
+  ) || 0;
+
+  offer.row.querySelector(".buyer-rank").textContent = String(index + 1);
+  offer.row.querySelector(".buyer-score").textContent = offer.score.toFixed(1);
+
+  purchasedUnits += quantity;
+  estimatedCost += quantity * offer.price;
+});
     const rankedRows = new Set(offers.map(offer => offer.row));
     offers.forEach(offer => tbody.appendChild(offer.row));
     rows.filter(row => !rankedRows.has(row)).forEach(row => tbody.appendChild(row));
