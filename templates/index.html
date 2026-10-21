@@ -250,10 +250,16 @@
           <td class="buyer-rank">—</td>
           <td>{{ o.seller_name }}</td>
           <td>{{ o.product_name }}</td>
-          <td>${{ o.unit_price }}</td>
-          <td>
-            <label>
-              <span class="muted">Rating</span>
+      <td>
+  <input
+    class="buyer-price"
+    type="number"
+    min="0"
+    step="0.01"
+    value="{{ o.unit_price }}"
+    style="width:85px"
+  >
+</td>
               <input
                 class="buyer-quality"
                 type="number"
