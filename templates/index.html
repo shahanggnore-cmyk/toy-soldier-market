@@ -296,11 +296,11 @@
     const offers = [];
     let invalidCount = 0;
     rows.forEach(function (row) {
-   const priceInput = row.querySelector(".buyer-price");
+  const priceInput = row.querySelector(".buyer-price");
 const price = priceInput ? Number(priceInput.value) : NaN;
       const stock = Number(row.dataset.stock);
-  const qualityInput = row.querySelector(".buyer-quality");
-const quality = Number(qualityInput.value);
+const qualityInput = row.querySelector(".buyer-quality");
+const quality = qualityInput ? Number(qualityInput.value) : NaN;
       row.querySelector(".buyer-rank").textContent = "—";
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
