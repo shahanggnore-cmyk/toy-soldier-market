@@ -306,7 +306,8 @@
     const offers = [];
     let invalidCount = 0;
     rows.forEach(function (row) {
-      const price = Number(row.querySelector(".buyer-price").value);
+   const priceInput = row.querySelector(".buyer-price");
+const price = priceInput ? Number(priceInput.value) : NaN;
       const stock = Number(row.dataset.stock);
   const qualityInput = row.querySelector(".buyer-quality");
 const quality = Number(qualityInput.value);
