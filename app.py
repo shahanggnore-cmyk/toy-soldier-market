@@ -192,7 +192,9 @@ def download_audit():
 @app.route("/api/results")
 def api_results():
     return jsonify(_public_state_summary(get_state()))
-    @app.route("/api/offers")
+
+
+@app.route("/api/offers")
 def api_offers():
     config = load_config(DATA)
     offers = get_offers()
@@ -216,12 +218,12 @@ def api_offers():
         "timestamp"
     ]
 
-    return jsonify({
-        "offers": [
-            {key: offer[key] for key in public_fields if key in offer}
-            for offer in offers
-        ]
-    })
+    public_offers = [
+        {key: offer[key] for key in public_fields if key in offer}
+        for offer in offers
+    ]
+
+    return jsonify({"offers": public_offers})
 
 @app.route("/replay", methods=["POST"])
 def replay():
