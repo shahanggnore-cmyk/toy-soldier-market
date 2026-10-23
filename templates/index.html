@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% block content %}
 
@@ -40,26 +39,23 @@
       <dt>Current simulated day</dt>
       <dd>{{ state.day }}</dd>
     </dl>
-    
-<div>
-  Current Eastern Time: <span id="eastern-clock"></span>
-</div>
 
-<script>
-  function updateEasternClock() {
-    document.getElementById("eastern-clock").textContent =
-      new Date().toLocaleTimeString("en-US", {
-        timeZone: "America/New_York",
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZoneName: "short"
-      });
-  }
+    <div>Current Eastern Time: <span id="eastern-clock"></span></div>
 
-  updateEasternClock();
-  setInterval(updateEasternClock, 1000);
-</script>
+    <script>
+      function updateEasternClock() {
+        document.getElementById("eastern-clock").textContent =
+          new Date().toLocaleTimeString("en-US", {
+            timeZone: "America/New_York",
+            hour: "numeric",
+            minute: "2-digit",
+            second: "2-digit",
+            timeZoneName: "short"
+          });
+      }
+      updateEasternClock();
+      setInterval(updateEasternClock, 1000);
+    </script>
 
     <h3>Market Rules</h3>
     <ul>
@@ -67,7 +63,6 @@
       <li>{{ rule }}</li>
       {% endfor %}
     </ul>
-   
   </div>
 
   <div class="card">
@@ -81,7 +76,6 @@
         <p>{{ s.description or s.members|join(", ") if s.members else s.description or "" }}</p>
         {% if s.url %}
         <a href="{{ s.url }}" target="_blank" rel="noopener">Open seller website ↗</a>
-       
         {% endif %}
       </div>
       {% endfor %}
@@ -107,7 +101,6 @@
 <section class="card">
   <h2>Available Toy Offers</h2>
   <p class="muted">These offers are loaded from data/offers.csv.</p>
-
   <p>
     <strong>{{ validation.offer_count }}</strong> offer rows loaded.
     <span class="pill {{ 'ok' if validation.valid else 'bad' }}">
@@ -163,11 +156,12 @@
   </div>
 </section>
 
-<!-- BUYER STRATEGY -->
 <section class="card" id="buyer-strategy">
-  <h2>🤖 Buyer Strategy and Quality Comparison</h2>
+  <h2>Buyer Strategy and Quality Comparison</h2>
   <p>
-    This optional planning tool ranks offers using your entered quality ratings and affordability. It recommends quantities only; the daily simulation below uses customer values, budgets, search, loyalty, and virtual inventory.
+    Change the price and quality of each offer, then click Find Best Offers.
+    Recommendations respect stock and your target quantity. This tool does
+    not place orders or change official market inventory.
   </p>
 
   <div class="form-row">
@@ -178,41 +172,26 @@
     <div>
       <label for="quality-weight">Importance of quality</label>
       <select id="quality-weight">
-        <option value="60" selected>60% quality / 40% price</option>
+        <option value="50" selected>50% quality / 50% price</option>
+        <option value="60">60% quality / 40% price</option>
         <option value="75">75% quality / 25% price</option>
-        <option value="50">50% quality / 50% price</option>
         <option value="25">25% quality / 75% price</option>
       </select>
     </div>
   </div>
 
-  <p class="muted">
-    Enter a quality rating from 1 to 10 for each offer. Ratings start at
-    5 as placeholders; replace them with your own assessments or verified
-    seller information.
-  </p>
+  <p class="muted">Enter a price and quality rating from 1 to 10 for each offer. Stock cannot be edited here.</p>
 
-  <button type="button" id="run-buyer-strategy">
-    Find Best Offers
-  </button>
+  <button type="button" id="run-buyer-strategy">Find Best Offers</button>
 
   <div class="metrics">
-    <div>
-      <strong id="buyer-total-units">—</strong>
-      <span>Toys recommended</span>
-    </div>
-    <div>
-      <strong id="buyer-total-cost">—</strong>
-      <span>Estimated total cost</span>
-    </div>
-    <div>
-      <strong id="buyer-unfilled">—</strong>
-      <span>Target still unfilled</span>
-    </div>
+    <div><strong id="buyer-total-units">—</strong><span>Toys recommended</span></div>
+    <div><strong id="buyer-total-cost">—</strong><span>Estimated total cost</span></div>
+    <div><strong id="buyer-unfilled">—</strong><span>Target still unfilled</span></div>
   </div>
 
   <div id="buyer-summary" class="notice" aria-live="polite">
-    Choose quality ratings and click Find Best Offers.
+    Change prices or quality ratings and click Find Best Offers.
   </div>
 
   <div class="table-wrap">
@@ -231,36 +210,19 @@
       </thead>
       <tbody id="buyer-results">
         {% for o in offers %}
-        <tr
-          data-seller="{{ o.seller_name }}"
-          data-product="{{ o.product_name }}"
-          data-price="{{ o.unit_price }}"
-          data-stock="{{ o.quantity }}"
-        >
+        <tr data-seller="{{ o.seller_name }}" data-product="{{ o.product_name }}" data-stock="{{ o.quantity }}">
           <td class="buyer-rank">—</td>
           <td>{{ o.seller_name }}</td>
           <td>{{ o.product_name }}</td>
-      <td>
-  <input
-    class="buyer-price"
-    type="number"
-    min="0"
-    step="0.01"
-    value="{{ o.unit_price }}"
-    style="width:85px"
-  >
-</td>
-              <input
-                class="buyer-quality"
-                type="number"
-                min="1"
-                max="10"
-                step="1"
-                value="5"
-                aria-label="Quality rating for {{ o.product_name }} from {{ o.seller_name }}"
-                style="width:65px"
-              >
-            </label>
+          <td>
+            <input class="buyer-price" type="number" min="0" step="0.01"
+              value="{{ o.unit_price }}" aria-label="Price for {{ o.product_name }} from {{ o.seller_name }}"
+              style="width:90px">
+          </td>
+          <td>
+            <input class="buyer-quality" type="number" min="1" max="10" step="1"
+              value="5" aria-label="Quality rating for {{ o.product_name }} from {{ o.seller_name }}"
+              style="width:65px">
           </td>
           <td class="buyer-stock">{{ o.quantity }}</td>
           <td class="buyer-score">—</td>
@@ -270,40 +232,46 @@
       </tbody>
     </table>
   </div>
-
-  <p class="muted">
-    How it works: scores combine the entered quality rating and relative affordability. The allocation stops when the target is met or listed stock runs out. This recommendation does not place orders or alter simulation inventory.
-  </p>
+  <p class="muted">Scores combine quality and affordability. Recommendations are separate from the official market simulation.</p>
 </section>
 
 <script>
 (function () {
   const runButton = document.getElementById("run-buyer-strategy");
   if (!runButton) return;
+
   runButton.addEventListener("click", function () {
-    const target = Number(document.getElementById("buyer-target").value);
-    const qualityWeight = Number(document.getElementById("quality-weight").value);
+    const targetInput = document.getElementById("buyer-target");
+    const weightInput = document.getElementById("quality-weight");
     const summary = document.getElementById("buyer-summary");
     const tbody = document.getElementById("buyer-results");
     const totalUnits = document.getElementById("buyer-total-units");
     const totalCost = document.getElementById("buyer-total-cost");
     const unfilled = document.getElementById("buyer-unfilled");
+
+    const target = Number(targetInput.value);
+    const qualityWeight = Number(weightInput.value);
+
     if (!Number.isInteger(target) || target < 1) {
       summary.textContent = "Enter a whole-number target of at least 1 toy.";
       return;
     }
+
     const rows = Array.from(tbody.querySelectorAll("tr"));
     const offers = [];
     let invalidCount = 0;
+
     rows.forEach(function (row) {
-  const priceInput = row.querySelector(".buyer-price");
-const price = priceInput ? Number(priceInput.value) : NaN;
+      const priceInput = row.querySelector(".buyer-price");
+      const qualityInput = row.querySelector(".buyer-quality");
+      const price = priceInput ? Number(priceInput.value) : NaN;
+      const quality = qualityInput ? Number(qualityInput.value) : NaN;
       const stock = Number(row.dataset.stock);
-const qualityInput = row.querySelector(".buyer-quality");
-const quality = qualityInput ? Number(qualityInput.value) : NaN;
+
       row.querySelector(".buyer-rank").textContent = "—";
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
+
       if (!Number.isFinite(price) || price < 0 ||
           !Number.isInteger(stock) || stock < 0 ||
           !Number.isInteger(quality) || quality < 1 || quality > 10) {
@@ -311,12 +279,21 @@ const quality = qualityInput ? Number(qualityInput.value) : NaN;
         row.querySelector(".buyer-score").textContent = "Check data";
         return;
       }
+
       if (stock === 0) {
         row.querySelector(".buyer-score").textContent = "Out of stock";
         return;
       }
-      offers.push({row, price, stock, quality, score: 0});
+
+      offers.push({
+        row: row,
+        price: price,
+        stock: stock,
+        quality: quality,
+        score: 0
+      });
     });
+
     if (!offers.length) {
       summary.textContent = "No valid in-stock offers are available. Check prices, stock, and quality ratings.";
       totalUnits.textContent = "0";
@@ -324,102 +301,139 @@ const quality = qualityInput ? Number(qualityInput.value) : NaN;
       unfilled.textContent = String(target);
       return;
     }
-    const positivePrices = offers.filter(o => o.price > 0).map(o => o.price);
-    const cheapestPrice = positivePrices.length ? Math.min(...positivePrices) : 0;
-   offers.forEach(function (offer) {
-  const qualityScore = (offer.quality / 10) * 100;
-  const priceScore = offer.price === 0 ? 100 :
-    (cheapestPrice > 0 ? (cheapestPrice / offer.price) * 100 : 0);
 
-  offer.score = qualityScore * 0.5 + priceScore * 0.5;
-});
+    const positivePrices = offers
+      .filter(function (offer) { return offer.price > 0; })
+      .map(function (offer) { return offer.price; });
 
-offers.sort((a, b) =>
-  b.score - a.score || b.quality - a.quality || a.price - b.price
-);
+    const cheapestPrice = positivePrices.length
+      ? Math.min.apply(null, positivePrices)
+      : 0;
+
+    offers.forEach(function (offer) {
+      const qualityScore = offer.quality * 10;
+      const priceScore = offer.price === 0
+        ? 100
+        : (cheapestPrice > 0 ? (cheapestPrice / offer.price) * 100 : 0);
+
+      offer.score =
+        qualityScore * qualityWeight / 100 +
+        priceScore * (100 - qualityWeight) / 100;
+    });
+
+    offers.sort(function (a, b) {
+      return b.score - a.score ||
+        b.quality - a.quality ||
+        a.price - b.price ||
+        a.row.dataset.seller.localeCompare(b.row.dataset.seller);
+    });
+
     let remaining = target;
-let purchasedUnits = 0;
-let estimatedCost = 0;
+    let purchasedUnits = 0;
+    let estimatedCost = 0;
 
-// Group offers with equal scores and prices.
-let index = 0;
+    offers.forEach(function (offer) {
+      offer.row.querySelector(".buyer-quantity").textContent = "0";
+    });
 
-while (index < offers.length) {
-  let end = index + 1;
+    let index = 0;
 
-  while (
-    end < offers.length &&
-    Math.abs(offers[end].score - offers[index].score) < 0.000001 &&
-    offers[end].price === offers[index].price
-  ) {
-    end++;
-  }
+    while (index < offers.length && remaining > 0) {
+      let end = index + 1;
 
-  const tiedOffers = offers.slice(index, end);
-
-  // Split the remaining target evenly among tied offers,
-  // respecting each seller's available stock.
-  let active = tiedOffers.filter(offer => offer.stock > 0);
-
-  while (remaining > 0 && active.length > 0) {
-    const share = Math.max(1, Math.floor(remaining / active.length));
-    let allocatedThisRound = 0;
-
-    active.forEach(function (offer) {
-      const current = Number(
-        offer.row.querySelector(".buyer-quantity").textContent
-      ) || 0;
-
-      const available = offer.stock - current;
-      const quantity = Math.min(share, available, remaining - allocatedThisRound);
-
-      if (quantity > 0) {
-        offer.row.querySelector(".buyer-quantity").textContent =
-          String(current + quantity);
-        allocatedThisRound += quantity;
+      while (
+        end < offers.length &&
+        Math.abs(offers[end].score - offers[index].score) < 0.000001 &&
+        offers[end].price === offers[index].price
+      ) {
+        end++;
       }
-    });
 
-    remaining -= allocatedThisRound;
+      const tiedOffers = offers.slice(index, end);
+      let active = tiedOffers.filter(function (offer) {
+        return offer.stock > 0;
+      });
 
-    active = active.filter(offer => {
-      const current = Number(
+      while (remaining > 0 && active.length > 0) {
+        const share = Math.max(1, Math.floor(remaining / active.length));
+        let allocatedThisRound = 0;
+
+        active.forEach(function (offer) {
+          const quantityCell = offer.row.querySelector(".buyer-quantity");
+          const current = Number(quantityCell.textContent) || 0;
+          const available = offer.stock - current;
+          const quantity = Math.min(
+            share,
+            available,
+            remaining - allocatedThisRound
+          );
+
+          if (quantity > 0) {
+            quantityCell.textContent = String(current + quantity);
+            allocatedThisRound += quantity;
+          }
+        });
+
+        remaining -= allocatedThisRound;
+
+        active = active.filter(function (offer) {
+          const current = Number(
+            offer.row.querySelector(".buyer-quantity").textContent
+          ) || 0;
+          return current < offer.stock;
+        });
+
+        if (allocatedThisRound === 0) break;
+      }
+
+      index = end;
+    }
+
+    offers.forEach(function (offer, offerIndex) {
+      const quantity = Number(
         offer.row.querySelector(".buyer-quantity").textContent
       ) || 0;
-      return current < offer.stock;
+
+      offer.row.querySelector(".buyer-rank").textContent =
+        String(offerIndex + 1);
+      offer.row.querySelector(".buyer-score").textContent =
+        offer.score.toFixed(1);
+
+      purchasedUnits += quantity;
+      estimatedCost += quantity * offer.price;
     });
 
-    if (allocatedThisRound === 0) break;
-  }
+    const rankedRows = new Set(offers.map(function (offer) {
+      return offer.row;
+    }));
 
-  index = end;
-}
+    offers.forEach(function (offer) {
+      tbody.appendChild(offer.row);
+    });
 
-offers.forEach(function (offer, index) {
-  const quantity = Number(
-    offer.row.querySelector(".buyer-quantity").textContent
-  ) || 0;
+    rows.filter(function (row) {
+      return !rankedRows.has(row);
+    }).forEach(function (row) {
+      tbody.appendChild(row);
+    });
 
-  offer.row.querySelector(".buyer-rank").textContent = String(index + 1);
-  offer.row.querySelector(".buyer-score").textContent = offer.score.toFixed(1);
-
-  purchasedUnits += quantity;
-  estimatedCost += quantity * offer.price;
-});
-    
     totalUnits.textContent = String(purchasedUnits);
     totalCost.textContent = "$" + estimatedCost.toFixed(2);
     unfilled.textContent = String(remaining);
-    summary.textContent = "Recommendation complete: " + purchasedUnits +
+
+    summary.textContent =
+      "Recommendation complete: " + purchasedUnits +
       " of " + target + " requested toys, estimated cost $" +
       estimatedCost.toFixed(2) + ". " +
-      (remaining > 0 ? "Listed stock cannot meet the full target." :
-        "The target is met without exceeding any offer's stock.") +
-      (invalidCount > 0 ? " " + invalidCount + " offer(s) have invalid data or ratings." : "");
+      (remaining > 0
+        ? "Listed stock cannot meet the full target."
+        : "The target is met without exceeding any offer's stock.") +
+      (invalidCount > 0
+        ? " " + invalidCount + " offer(s) have invalid data or ratings."
+        : "");
   });
 })();
 </script>
-<!-- END BUYER STRATEGY -->
 
 <section class="grid two">
   <div class="card">
@@ -431,14 +445,14 @@ offers.forEach(function (offer, index) {
     </p>
 
     <form method="post" action="{{ url_for('run_day') }}">
-      {% if not demo_mode %}<label for="admin_token">Market operator token</label><input id="admin_token" name="admin_token" type="password" required>{% endif %}
+      {% if not demo_mode %}
+      <label for="admin_token">Market operator token</label>
+      <input id="admin_token" name="admin_token" type="password" required>
+      {% endif %}
+
       <label for="seed">Random seed (optional)</label>
-      <input
-        id="seed"
-        name="seed"
-        type="number"
-        placeholder="Use configured default"
-      >
+      <input id="seed" name="seed" type="number" placeholder="Use configured default">
+
       <button type="submit" {% if not validation.valid %}disabled{% endif %}>
         Run Simulation
       </button>
@@ -449,17 +463,18 @@ offers.forEach(function (offer, index) {
       Latest run: Day {{ latest.day }},
       {% if config.publish_seed %}seed {{ latest.seed }}, {% endif %}
       {{ latest.transactions }} transactions,
-      {{ latest.units_sold }} units, {{ latest.no_purchase_count or 0 }} customers bought nothing,
+      {{ latest.units_sold }} units,
+      {{ latest.no_purchase_count or 0 }} customers bought nothing,
       ${{ "%.2f"|format(latest.revenue) }} revenue.
     </p>
     {% endif %}
 
-    <form
-      method="post"
-      action="{{ url_for('reset') }}"
-      onsubmit="return confirm('Reset demo inventory and transactions? The audit log is preserved.');"
-    >
-      {% if not demo_mode %}<label for="reset_admin_token">Market operator token</label><input id="reset_admin_token" name="admin_token" type="password" required>{% endif %}
+    <form method="post" action="{{ url_for('reset') }}"
+      onsubmit="return confirm('Reset demo inventory and transactions? The audit log is preserved.');">
+      {% if not demo_mode %}
+      <label for="reset_admin_token">Market operator token</label>
+      <input id="reset_admin_token" name="admin_token" type="password" required>
+      {% endif %}
       <button class="secondary" type="submit">Reset Demo State</button>
     </form>
 
@@ -486,18 +501,22 @@ offers.forEach(function (offer, index) {
           {% endfor %}
         </select>
       </div>
+
       <div>
         <label for="replay-seed">Same random seed</label>
         <input id="replay-seed" name="seed" type="number" value="100" required>
       </div>
+
       <div>
         <label for="multiplier_a">Strategy A price multiplier</label>
         <input id="multiplier_a" name="multiplier_a" type="number" min="0.01" max="10" step="0.01" value="1.00" required>
       </div>
+
       <div>
         <label for="multiplier_b">Strategy B price multiplier</label>
         <input id="multiplier_b" name="multiplier_b" type="number" min="0.01" max="10" step="0.01" value="0.90" required>
       </div>
+
       <button type="submit">Compare Pricing Strategies</button>
     </form>
   </div>
@@ -555,34 +574,5 @@ offers.forEach(function (offer, index) {
     <a class="button-link outline" href="{{ url_for('download_audit') }}">Download Audit Log</a>
   </div>
 </section>
-<style>
-  body {
-    background: #eaf0f7 !important;
-    color: #243247;
-  }
-
-  .card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 3px 12px rgba(30, 50, 80, 0.08);
-  }
-
-  h1, h2, h3 {
-    color: #183153;
-  }
-
-  th {
-    background: #dbe7f5;
-    color: #183153;
-  }
-
-  button {
-    border-radius: 6px;
-  }
-</style>
-
-
-
-
 
 {% endblock %}
