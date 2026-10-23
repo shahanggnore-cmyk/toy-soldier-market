@@ -111,8 +111,9 @@
   <section class="buyer-panel">
     <h2>Available Toy Offers</h2>
     <p class="buyer-muted">
-      Groups stay in the same positions. Similar-scoring offers can share the
-      target quantity, while a clearly superior offer can receive all available units.
+      Quantities are allocated proportionally to offer scores. Better offers
+      receive a larger share, while weaker offers can still receive units.
+      Table rows stay in their original positions.
     </p>
 
     <div style="margin-bottom:14px;">
@@ -234,9 +235,9 @@
   <section class="buyer-panel">
     <h2>Buyer Strategy and Quality Comparison</h2>
     <p>
-      Offers are scored using quality and affordability preferences. Similar-scoring
-      offers can share recommended purchases, while significantly better offers
-      are favored. Recommendations do not place actual orders.
+      The strategy scores offers using quality and affordability preferences,
+      then allocates the target quantity in proportion to the scores. Higher
+      scores receive a larger share. Recommendations do not place actual orders.
     </p>
   </section>
 
@@ -255,7 +256,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "toySoldierBuyerOffersV6";
+  const STORAGE_KEY = "toySoldierBuyerOffersV7";
   const body = document.getElementById("buyer-offers-body");
   const status = document.getElementById("buyer-status");
 
@@ -273,6 +274,7 @@
 
   function saveRow(row) {
     const saved = readSavedData();
+
     saved[String(row.dataset.key)] = {
       price: row.querySelector(".buyer-price").value,
       quality: row.querySelector(".buyer-quality").value
@@ -316,6 +318,7 @@
       0,
       Math.floor(Number(document.getElementById("buyer-target").value) || 0)
     );
+
     const qualityWeight =
       Number(document.getElementById("buyer-quality-weight").value) / 100;
 
@@ -357,46 +360,90 @@
         affordability * (1 - qualityWeight);
     });
 
-    const ranked = valid.slice().sort(function (a, b) {
-      return b.score - a.score ||
-        b.quality - a.quality ||
-        a.price - b.price ||
-        a.index - b.index;
+    // Use a positive score weight for each offer so even weaker valid
+    // offers can receive a share. Square scores to favor better offers.
+    const scoreWeights = valid.map(function (offer) {
+      return Math.pow(Math.max(offer.score, 1), 2);
     });
 
-    // Allocate to the best group only when its score clearly exceeds
-    // the next-best offer by at least 15 points.
-    const CLEAR_WIN_MARGIN = 15;
-    const clearWinner = ranked.length === 1 ||
-      (ranked.length > 1 &&
-       ranked[0].score - ranked[1].score >= CLEAR_WIN_MARGIN);
-
     let remaining = target;
+    let active = valid.map(function (offer, index) {
+      return { offer: offer, weight: scoreWeights[index] };
+    });
 
-    if (clearWinner && ranked.length > 0) {
-      const winner = ranked[0];
-      winner.quantity = Math.min(remaining, winner.stock);
-      remaining -= winner.quantity;
-    } else {
-      // Similar scores: repeatedly cycle through ranked offers.
-      // Higher-scoring groups get first chance in each round.
-      while (remaining > 0) {
-        let allocatedThisRound = 0;
+    // Allocate proportionally, respecting each offer's stock limit.
+    while (remaining > 0 && active.length > 0) {
+      const totalWeight = active.reduce(function (sum, item) {
+        return sum + item.weight;
+      }, 0);
 
-        for (const offer of ranked) {
-          if (remaining <= 0) break;
-          if (offer.quantity >= offer.stock) continue;
+      if (totalWeight <= 0) break;
 
-          offer.quantity += 1;
-          remaining -= 1;
-          allocatedThisRound += 1;
+      let allocatedInRound = 0;
+      const allocations = active.map(function (item) {
+        return {
+          item: item,
+          share: remaining * item.weight / totalWeight
+        };
+      });
+
+      // First allocate the integer portions of the proportional shares.
+      allocations.forEach(function (allocation) {
+        const offer = allocation.item.offer;
+        const capacity = offer.stock - offer.quantity;
+        const units = Math.min(
+          capacity,
+          Math.floor(allocation.share)
+        );
+
+        if (units > 0) {
+          offer.quantity += units;
+          allocatedInRound += units;
         }
+      });
 
-        if (allocatedThisRound === 0) break;
+      remaining -= allocatedInRound;
+
+      if (remaining <= 0) break;
+
+      // Give leftover units to the largest fractional shares, favoring
+      // higher scores if the fractional parts tie.
+      allocations.sort(function (a, b) {
+        const fractionA = a.share - Math.floor(a.share);
+        const fractionB = b.share - Math.floor(b.share);
+
+        return fractionB - fractionA ||
+          b.item.offer.score - a.item.offer.score ||
+          a.item.offer.index - b.item.offer.index;
+      });
+
+      let gaveLeftover = false;
+
+      for (const allocation of allocations) {
+        if (remaining <= 0) break;
+
+        const offer = allocation.item.offer;
+        if (offer.quantity >= offer.stock) continue;
+
+        offer.quantity += 1;
+        remaining -= 1;
+        gaveLeftover = true;
       }
+
+      // Remove offers that have reached their stock limit.
+      active = active.filter(function (item) {
+        return item.offer.quantity < item.offer.stock;
+      });
+
+      if (allocatedInRound === 0 && !gaveLeftover && active.length === 0) {
+        break;
+      }
+
+      // Avoid looping if no offer can receive another unit.
+      if (active.length === 0) break;
     }
 
-    // Keep table rows in their original positions.
+    // Keep all table rows in their original order.
     rows.forEach(function (row) {
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
@@ -408,6 +455,7 @@
     valid.forEach(function (offer) {
       offer.row.querySelector(".buyer-score").textContent =
         offer.score.toFixed(1);
+
       offer.row.querySelector(".buyer-quantity").textContent =
         offer.quantity;
 
@@ -420,16 +468,10 @@
       "$" + totalCost.toFixed(2);
     document.getElementById("buyer-offer-count").textContent = valid.length;
 
-    if (valid.length === 0) {
-      status.textContent = "No valid offers with available stock. Check price, quality, and stock.";
-    } else if (clearWinner) {
-      status.textContent =
-        "A clear top offer was identified. It receives priority; remaining units are left unallocated if its stock runs out.";
-    } else {
-      status.textContent =
-        "Scores are relatively close, so units are shared across ranked offers. " +
-        remaining + " requested units could not be allocated.";
-    }
+    status.textContent = valid.length
+      ? "Proportional allocation calculated. " + remaining +
+        " requested units could not be allocated because of available stock."
+      : "No valid offers with available stock. Check price, quality, and stock.";
   }
 
   document.getElementById("run-buyer-strategy")
@@ -446,6 +488,7 @@
       if (!confirm("Reset saved prices and quality ratings in this browser?")) {
         return;
       }
+
       localStorage.removeItem(STORAGE_KEY);
       location.reload();
     });
@@ -467,6 +510,7 @@
 })();
 </script>
 {% endblock %}
+
 
 
 
