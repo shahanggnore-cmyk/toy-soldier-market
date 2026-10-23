@@ -1,578 +1,603 @@
+
 {% extends "base.html" %}
+
 {% block content %}
+<style>
+  .buyer-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+    color: #1e293b;
+  }
 
-<section class="hero card">
-  <div>
-    <span class="pill">Market status: {{ "demo" if demo_mode else "live" }}</span>
-    <h2>Buyer Team Market Hub</h2>
-    <p>Compare sellers, find the best toy offers, run market simulations, and analyze results.</p>
-  </div>
-  <div class="hero-stat">
-    <strong>{{ state.day }}</strong>
-    <span>days simulated</span>
-  </div>
-</section>
+  .buyer-panel {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 18px 0;
+    overflow-x: auto;
+  }
 
-{% if announcements %}
-<section class="card">
-  <h2>Announcements</h2>
-  {% for a in announcements %}
-  <article class="announcement">
-    <strong>{{ a.title }}</strong>
-    <p>{{ a.message }}</p>
-    <small>{{ a.date or "Date not specified" }}</small>
-  </article>
-  {% endfor %}
-</section>
-{% endif %}
+  .buyer-page h1 { margin-bottom: 8px; }
+  .buyer-page h2 { margin-top: 10px; }
 
-<section class="grid two">
-  <div class="card">
+  .buyer-muted { color: #64748b; font-size: 13px; }
+  .buyer-metrics { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .buyer-metric {
+    background: #f1f5f9;
+    padding: 14px;
+    border-radius: 8px;
+    min-width: 130px;
+  }
+
+  .buyer-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 950px;
+  }
+
+  .buyer-table th,
+  .buyer-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .buyer-table th {
+    background: #f1f5f9;
+    font-size: 13px;
+  }
+
+  .buyer-table input[type="number"] {
+    width: 85px;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+  }
+
+  .buyer-image-box {
+    width: 80px;
+    height: 65px;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #f8fafc;
+    margin-bottom: 6px;
+  }
+
+  .buyer-image-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .buyer-image-upload {
+    display: block;
+    max-width: 140px;
+    font-size: 11px;
+    margin-bottom: 5px;
+  }
+
+  .buyer-button {
+    border: 0;
+    border-radius: 7px;
+    background: #2563eb;
+    color: white;
+    padding: 10px 16px;
+    cursor: pointer;
+    margin: 4px;
+  }
+
+  .buyer-button:hover { background: #1d4ed8; }
+  .buyer-button.secondary { background: #475569; }
+  .buyer-button.danger { background: #b91c1c; }
+
+  .buyer-status { margin-top: 12px; font-weight: 600; }
+
+  @media (max-width: 700px) {
+    .buyer-page { padding: 12px; }
+    .buyer-panel { padding: 12px; }
+  }
+</style>
+
+<div class="buyer-page">
+  <h1>Toy Soldier Market — Buyer Portal</h1>
+  <p class="buyer-muted">
+    Compare seller offers, upload toy images, adjust prices and quality ratings,
+    and calculate recommended purchases. Your changes are saved in this browser.
+  </p>
+
+  <section class="buyer-panel">
     <h2>Market Schedule</h2>
-    <dl class="details">
-      <dt>Offer cutoff</dt>
-      <dd>{{ config.cutoff_time or "Not confirmed" }}</dd>
-      <dt>Results release</dt>
-      <dd>{{ config.results_time or "Not confirmed" }}</dd>
-      <dt>Timezone</dt>
-      <dd>{{ config.timezone or "Not configured" }}</dd>
-      <dt>Current simulated day</dt>
-      <dd>{{ state.day }}</dd>
-    </dl>
+    <p>Offer cutoff: {{ offer_cutoff if offer_cutoff is defined else "10-31" }}</p>
+    <p>Results release: {{ results_release if results_release is defined else "11-1" }}</p>
+    <p>Timezone: America/New_York</p>
+    <p id="buyer-clock" class="buyer-muted"></p>
+  </section>
 
-    <div>Current Eastern Time: <span id="eastern-clock"></span></div>
-
-    <script>
-      function updateEasternClock() {
-        document.getElementById("eastern-clock").textContent =
-          new Date().toLocaleTimeString("en-US", {
-            timeZone: "America/New_York",
-            hour: "numeric",
-            minute: "2-digit",
-            second: "2-digit",
-            timeZoneName: "short"
-          });
-      }
-      updateEasternClock();
-      setInterval(updateEasternClock, 1000);
-    </script>
-
-    <h3>Market Rules</h3>
-    <ul>
-      {% for rule in config.public_rules or [] %}
-      <li>{{ rule }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  <div class="card">
+  <section class="buyer-panel">
     <h2>Seller Directory</h2>
-    {% if sellers %}
-    <div class="seller-list">
-      {% for s in sellers %}
-      <div class="seller">
-        <strong>{{ s.name }}</strong>
-        <span>{{ s.seller_id or "" }}</span>
-        <p>{{ s.description or s.members|join(", ") if s.members else s.description or "" }}</p>
-        {% if s.url %}
-        <a href="{{ s.url }}" target="_blank" rel="noopener">Open seller website ↗</a>
-        {% endif %}
-      </div>
+    {% if seller_groups is defined and seller_groups %}
+      {% for group in seller_groups %}
+        <div>
+          <strong>{{ group.name if group.name is defined else group }}</strong>
+        </div>
       {% endfor %}
-    </div>
     {% else %}
-    <p>No sellers configured yet. Add sellers to data/sellers.json.</p>
+      <p class="buyer-muted">
+        Seller information will be updated when offer details are available.
+      </p>
     {% endif %}
-  </div>
-</section>
+  </section>
 
-<section class="card">
-  <h2>Customer Model</h2>
-  <p>The sample simulation uses four customer types. Exact budgets and product values are configured privately pending instructor approval.</p>
-  <ul>
-    <li><strong>Bargain hunters:</strong> lower willingness to pay and a strict budget; may choose to buy nothing.</li>
-    <li><strong>Collectors:</strong> higher values for desired products and a possible benefit from prior seller relationships.</li>
-    <li><strong>Convenience shoppers:</strong> inspect a limited, randomized subset of sellers and account for inconvenience.</li>
-    <li><strong>Returning customers:</strong> retain a stable identity and seller purchase history across simulated days.</li>
-  </ul>
-  <p><strong>Choice rule:</strong> utility = product value − total price + loyalty benefit − inconvenience cost. Customers choose the highest positive-utility eligible offer they can afford and that has virtual stock, or buy nothing. Exact ties are resolved using the saved random seed.</p>
-</section>
+  <section class="buyer-panel">
+    <h2>Available Toy Offers</h2>
+    <p class="buyer-muted">
+      Upload an image for each offer. Prices and quality ratings remain saved
+      after refreshing this page in the same browser.
+    </p>
 
-<section class="card">
-  <h2>Available Toy Offers</h2>
-  <p class="muted">These offers are loaded from data/offers.csv.</p>
-  <p>
-    <strong>{{ validation.offer_count }}</strong> offer rows loaded.
-    <span class="pill {{ 'ok' if validation.valid else 'bad' }}">
-      {{ 'Valid' if validation.valid else 'Needs fixes' }}
-    </span>
-  </p>
+    <div style="margin-bottom:14px;">
+      <label for="buyer-target"><strong>Target quantity:</strong></label>
+      <input id="buyer-target" type="number" min="0" value="10"
+             style="width:85px;padding:8px;">
 
-  {% if validation.errors %}
-  <div class="notice bad">
-    <strong>Errors</strong>
-    <ul>
-      {% for e in validation.errors %}
-      <li>{{ e }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-
-  {% if validation.warnings %}
-  <div class="notice">
-    <strong>Warnings</strong>
-    <ul>
-      {% for w in validation.warnings %}
-      <li>{{ w }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Seller</th>
-          <th>Toy</th>
-          <th>Price</th>
-          <th>Stock</th>
-          <th>Effective Day</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for o in offers %}
-        <tr>
-          <td>{{ o.seller_name }} ({{ o.seller_id }})</td>
-          <td>{{ o.product_name }} ({{ o.product_id }})</td>
-          <td>${{ o.unit_price }}</td>
-          <td>{{ o.quantity }}</td>
-          <td>{{ o.effective_day }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="card" id="buyer-strategy">
-  <h2>Buyer Strategy and Quality Comparison</h2>
-  <p>
-    Change the price and quality of each offer, then click Find Best Offers.
-    Recommendations respect stock and your target quantity. This tool does
-    not place orders or change official market inventory.
-  </p>
-
-  <div class="form-row">
-    <div>
-      <label for="buyer-target">Target number of toys</label>
-      <input id="buyer-target" type="number" min="1" step="1" value="10">
-    </div>
-    <div>
-      <label for="quality-weight">Importance of quality</label>
-      <select id="quality-weight">
-        <option value="50" selected>50% quality / 50% price</option>
-        <option value="60">60% quality / 40% price</option>
-        <option value="75">75% quality / 25% price</option>
-        <option value="25">25% quality / 75% price</option>
+      <label for="buyer-quality-weight" style="margin-left:12px;">
+        <strong>Quality weighting:</strong>
+      </label>
+      <select id="buyer-quality-weight" style="padding:8px;">
+        <option value="25">25% quality / 75% affordability</option>
+        <option value="50" selected>50% quality / 50% affordability</option>
+        <option value="75">75% quality / 25% affordability</option>
+        <option value="100">100% quality</option>
       </select>
+
+      <button type="button" class="buyer-button" id="run-buyer-strategy">
+        Run Buyer Strategy
+      </button>
+
+      <button type="button" class="buyer-button secondary" id="reset-buyer-inputs">
+        Reset Saved Inputs
+      </button>
     </div>
-  </div>
 
-  <p class="muted">Enter a price and quality rating from 1 to 10 for each offer. Stock cannot be edited here.</p>
+    <div class="buyer-metrics">
+      <div class="buyer-metric">
+        <div class="buyer-muted">Recommended units</div>
+        <strong id="buyer-total-units">0</strong>
+      </div>
+      <div class="buyer-metric">
+        <div class="buyer-muted">Estimated cost</div>
+        <strong id="buyer-total-cost">$0.00</strong>
+      </div>
+      <div class="buyer-metric">
+        <div class="buyer-muted">Offers considered</div>
+        <strong id="buyer-offer-count">0</strong>
+      </div>
+    </div>
 
-  <button type="button" id="run-buyer-strategy">Find Best Offers</button>
+    <div style="margin-top:16px;">
+      <table class="buyer-table" id="buyer-offers-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Toy Image</th>
+            <th>Seller / Group</th>
+            <th>Toy</th>
+            <th>Price ($)</th>
+            <th>Quality (1–10)</th>
+            <th>Stock</th>
+            <th>Score</th>
+            <th>Recommended Quantity</th>
+          </tr>
+        </thead>
+        <tbody id="buyer-offers-body">
+          {% if offers is defined and offers %}
+            {% for offer in offers %}
+              <tr class="buyer-offer-row"
+                  data-key="{{ offer.id if offer.id is defined else loop.index0 }}"
+                  data-stock="{{ offer.stock if offer.stock is defined else 10 }}">
+                <td class="buyer-rank">—</td>
+                <td>
+                  <div class="buyer-image-box">
+                    <img class="buyer-image-preview" alt="Toy image preview"
+                         style="display:none;">
+                    <span class="buyer-image-placeholder buyer-muted">No image</span>
+                  </div>
+                  <input class="buyer-image-upload" type="file"
+                         accept="image/*" aria-label="Upload toy image">
+                  <button type="button" class="buyer-clear-image"
+                          style="font-size:11px;">Remove image</button>
+                </td>
+                <td class="buyer-seller">
+                  {{ offer.seller if offer.seller is defined else
+                     offer.group if offer.group is defined else "Seller" }}
+                </td>
+                <td class="buyer-toy">
+                  {{ offer.toy if offer.toy is defined else
+                     offer.product if offer.product is defined else "Toy Soldier" }}
+                </td>
+                <td>
+                  <input type="number" class="buyer-price" min="0" step="0.01"
+                         value="{{ offer.price if offer.price is defined else 10 }}">
+                </td>
+                <td>
+                  <input type="number" class="buyer-quality" min="1" max="10"
+                         step="1" value="5">
+                </td>
+                <td class="buyer-stock">
+                  {{ offer.stock if offer.stock is defined else 10 }}
+                </td>
+                <td class="buyer-score">—</td>
+                <td class="buyer-quantity">0</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            {% for i in range(1, 5) %}
+              <tr class="buyer-offer-row" data-key="demo-{{ i }}" data-stock="10">
+                <td class="buyer-rank">—</td>
+                <td>
+                  <div class="buyer-image-box">
+                    <img class="buyer-image-preview" alt="Toy image preview"
+                         style="display:none;">
+                    <span class="buyer-image-placeholder buyer-muted">No image</span>
+                  </div>
+                  <input class="buyer-image-upload" type="file"
+                         accept="image/*" aria-label="Upload toy image">
+                  <button type="button" class="buyer-clear-image"
+                          style="font-size:11px;">Remove image</button>
+                </td>
+                <td class="buyer-seller">Group {{ i }}</td>
+                <td class="buyer-toy">Toy Soldier</td>
+                <td>
+                  <input type="number" class="buyer-price" min="0" step="0.01" value="10">
+                </td>
+                <td>
+                  <input type="number" class="buyer-quality" min="1" max="10"
+                         step="1" value="5">
+                </td>
+                <td class="buyer-stock">10</td>
+                <td class="buyer-score">—</td>
+                <td class="buyer-quantity">0</td>
+              </tr>
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
 
-  <div class="metrics">
-    <div><strong id="buyer-total-units">—</strong><span>Toys recommended</span></div>
-    <div><strong id="buyer-total-cost">—</strong><span>Estimated total cost</span></div>
-    <div><strong id="buyer-unfilled">—</strong><span>Target still unfilled</span></div>
-  </div>
+    <p id="buyer-status" class="buyer-status" role="status"></p>
+  </section>
 
-  <div id="buyer-summary" class="notice" aria-live="polite">
-    Change prices or quality ratings and click Find Best Offers.
-  </div>
+  <section class="buyer-panel">
+    <h2>Buyer Strategy and Quality Comparison</h2>
+    <p>
+      The strategy scores each offer using quality and affordability preferences,
+      ranks the offers, and recommends quantities without exceeding available stock.
+      Recommendations do not place actual orders.
+    </p>
+  </section>
 
-  <div class="table-wrap">
-    <table id="buyer-table">
-      <thead>
-        <tr>
-          <th>Rank</th>
-          <th>Seller</th>
-          <th>Toy</th>
-          <th>Price</th>
-          <th>Quality / 10</th>
-          <th>Stock</th>
-          <th>Score / 100</th>
-          <th>Recommended Quantity</th>
-        </tr>
-      </thead>
-      <tbody id="buyer-results">
-        {% for o in offers %}
-        <tr data-seller="{{ o.seller_name }}" data-product="{{ o.product_name }}" data-stock="{{ o.quantity }}">
-          <td class="buyer-rank">—</td>
-          <td>{{ o.seller_name }}</td>
-          <td>{{ o.product_name }}</td>
-          <td>
-            <input class="buyer-price" type="number" min="0" step="0.01"
-              value="{{ o.unit_price }}" aria-label="Price for {{ o.product_name }} from {{ o.seller_name }}"
-              style="width:90px">
-          </td>
-          <td>
-            <input class="buyer-quality" type="number" min="1" max="10" step="1"
-              value="5" aria-label="Quality rating for {{ o.product_name }} from {{ o.seller_name }}"
-              style="width:65px">
-          </td>
-          <td class="buyer-stock">{{ o.quantity }}</td>
-          <td class="buyer-score">—</td>
-          <td class="buyer-quantity">—</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p class="muted">Scores combine quality and affordability. Recommendations are separate from the official market simulation.</p>
-</section>
+  <section class="buyer-panel">
+    <h2>Simulation</h2>
+    <p>
+      Use the market simulation controls configured for this site to run market
+      days and review transaction results.
+    </p>
+  </section>
+
+  <section class="buyer-panel">
+    <h2>Market Results</h2>
+    <p>
+      Review published aggregate results and transaction records using the
+      results links provided by the market.
+    </p>
+  </section>
+</div>
 
 <script>
 (function () {
-  const runButton = document.getElementById("run-buyer-strategy");
-  if (!runButton) return;
+  "use strict";
 
-  runButton.addEventListener("click", function () {
-    const targetInput = document.getElementById("buyer-target");
-    const weightInput = document.getElementById("quality-weight");
-    const summary = document.getElementById("buyer-summary");
-    const tbody = document.getElementById("buyer-results");
-    const totalUnits = document.getElementById("buyer-total-units");
-    const totalCost = document.getElementById("buyer-total-cost");
-    const unfilled = document.getElementById("buyer-unfilled");
+  const STORAGE_KEY = "toySoldierBuyerOffersV3";
+  const body = document.getElementById("buyer-offers-body");
+  const status = document.getElementById("buyer-status");
 
-    const target = Number(targetInput.value);
-    const qualityWeight = Number(weightInput.value);
+  function getRows() {
+    return Array.from(body.querySelectorAll(".buyer-offer-row"));
+  }
 
-    if (!Number.isInteger(target) || target < 1) {
-      summary.textContent = "Enter a whole-number target of at least 1 toy.";
+  function rowKey(row) {
+    return String(row.dataset.key);
+  }
+
+  function readSavedData() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function showImage(row, dataUrl) {
+    const image = row.querySelector(".buyer-image-preview");
+    const placeholder = row.querySelector(".buyer-image-placeholder");
+
+    if (dataUrl) {
+      image.src = dataUrl;
+      image.style.display = "block";
+      placeholder.style.display = "none";
+    } else {
+      image.removeAttribute("src");
+      image.style.display = "none";
+      placeholder.style.display = "inline";
+    }
+  }
+
+  function saveRow(row) {
+    const saved = readSavedData();
+    const key = rowKey(row);
+    const previous = saved[key] || {};
+
+    saved[key] = {
+      price: row.querySelector(".buyer-price").value,
+      quality: row.querySelector(".buyer-quality").value,
+      image: previous.image || ""
+    };
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      status.textContent = "Your price and quality changes have been saved.";
+    } catch (error) {
+      status.textContent = "Could not save. Browser storage may be full.";
+    }
+  }
+
+  function restoreRows() {
+    const saved = readSavedData();
+
+    getRows().forEach(function (row) {
+      const data = saved[rowKey(row)];
+      if (!data) return;
+
+      if (data.price !== undefined) {
+        row.querySelector(".buyer-price").value = data.price;
+      }
+
+      if (data.quality !== undefined) {
+        row.querySelector(".buyer-quality").value = data.quality;
+      }
+
+      if (data.image) {
+        showImage(row, data.image);
+      }
+    });
+  }
+
+  function compressImage(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+
+      reader.onerror = reject;
+      reader.onload = function () {
+        const image = new Image();
+
+        image.onerror = reject;
+        image.onload = function () {
+          const maxDimension = 350;
+          const scale = Math.min(
+            1,
+            maxDimension / Math.max(image.width, image.height)
+          );
+
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+
+          canvas.getContext("2d").drawImage(
+            image, 0, 0, canvas.width, canvas.height
+          );
+
+          resolve(canvas.toDataURL("image/jpeg", 0.75));
+        };
+
+        image.src = reader.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  body.addEventListener("input", function (event) {
+    const row = event.target.closest(".buyer-offer-row");
+    if (!row) return;
+
+    if (event.target.matches(".buyer-price, .buyer-quality")) {
+      saveRow(row);
+    }
+  });
+
+  body.addEventListener("change", async function (event) {
+    const row = event.target.closest(".buyer-offer-row");
+    if (!row || !event.target.matches(".buyer-image-upload")) return;
+
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      status.textContent = "Please choose an image file.";
+      event.target.value = "";
       return;
     }
 
-    const rows = Array.from(tbody.querySelectorAll("tr"));
-    const offers = [];
-    let invalidCount = 0;
+    try {
+      status.textContent = "Saving image…";
+      const dataUrl = await compressImage(file);
+      const saved = readSavedData();
+      const key = rowKey(row);
 
-    rows.forEach(function (row) {
-      const priceInput = row.querySelector(".buyer-price");
-      const qualityInput = row.querySelector(".buyer-quality");
-      const price = priceInput ? Number(priceInput.value) : NaN;
-      const quality = qualityInput ? Number(qualityInput.value) : NaN;
-      const stock = Number(row.dataset.stock);
+      saved[key] = saved[key] || {};
+      saved[key].price = row.querySelector(".buyer-price").value;
+      saved[key].quality = row.querySelector(".buyer-quality").value;
+      saved[key].image = dataUrl;
 
-      row.querySelector(".buyer-rank").textContent = "—";
-      row.querySelector(".buyer-score").textContent = "—";
-      row.querySelector(".buyer-quantity").textContent = "0";
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      showImage(row, dataUrl);
+      status.textContent = "Image saved in this browser.";
+    } catch (error) {
+      status.textContent =
+        "Image could not be saved. Try a smaller image or clear browser storage.";
+    }
+  });
 
-      if (!Number.isFinite(price) || price < 0 ||
-          !Number.isInteger(stock) || stock < 0 ||
-          !Number.isInteger(quality) || quality < 1 || quality > 10) {
-        invalidCount++;
-        row.querySelector(".buyer-score").textContent = "Check data";
-        return;
-      }
+  body.addEventListener("click", function (event) {
+    if (!event.target.matches(".buyer-clear-image")) return;
 
-      if (stock === 0) {
-        row.querySelector(".buyer-score").textContent = "Out of stock";
-        return;
-      }
+    const row = event.target.closest(".buyer-offer-row");
+    const saved = readSavedData();
+    const key = rowKey(row);
 
-      offers.push({
+    if (saved[key]) {
+      saved[key].image = "";
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      } catch (error) {}
+    }
+
+    row.querySelector(".buyer-image-upload").value = "";
+    showImage(row, "");
+    status.textContent = "Image removed.";
+  });
+
+  function runStrategy() {
+    const rows = getRows();
+    const target = Math.max(
+      0,
+      Number(document.getElementById("buyer-target").value) || 0
+    );
+    const qualityWeight = Number(
+      document.getElementById("buyer-quality-weight").value
+    ) / 100;
+
+    const offers = rows.map(function (row) {
+      return {
         row: row,
-        price: price,
-        stock: stock,
-        quality: quality,
-        score: 0
-      });
+        seller: row.querySelector(".buyer-seller").textContent.trim(),
+        price: Number(row.querySelector(".buyer-price").value),
+        quality: Number(row.querySelector(".buyer-quality").value),
+        stock: Math.max(0, Number(row.dataset.stock) || 0)
+      };
     });
 
-    if (!offers.length) {
-      summary.textContent = "No valid in-stock offers are available. Check prices, stock, and quality ratings.";
-      totalUnits.textContent = "0";
-      totalCost.textContent = "$0.00";
-      unfilled.textContent = String(target);
-      return;
-    }
+    const valid = offers.filter(function (offer) {
+      return Number.isFinite(offer.price) &&
+        offer.price >= 0 &&
+        Number.isFinite(offer.quality) &&
+        offer.quality >= 1 &&
+        offer.quality <= 10 &&
+        offer.stock > 0;
+    });
 
-    const positivePrices = offers
-      .filter(function (offer) { return offer.price > 0; })
-      .map(function (offer) { return offer.price; });
-
-    const cheapestPrice = positivePrices.length
-      ? Math.min.apply(null, positivePrices)
+    const cheapest = valid.length
+      ? Math.min.apply(null, valid.map(function (offer) {
+          return offer.price;
+        }))
       : 0;
 
-    offers.forEach(function (offer) {
+    valid.forEach(function (offer) {
+      const affordability = cheapest === 0
+        ? (offer.price === 0 ? 100 : 0)
+        : Math.max(0, Math.min(100, cheapest / offer.price * 100));
+
       const qualityScore = offer.quality * 10;
-      const priceScore = offer.price === 0
-        ? 100
-        : (cheapestPrice > 0 ? (cheapestPrice / offer.price) * 100 : 0);
 
       offer.score =
-        qualityScore * qualityWeight / 100 +
-        priceScore * (100 - qualityWeight) / 100;
+        qualityScore * qualityWeight +
+        affordability * (1 - qualityWeight);
     });
 
-    offers.sort(function (a, b) {
+    valid.sort(function (a, b) {
       return b.score - a.score ||
         b.quality - a.quality ||
         a.price - b.price ||
-        a.row.dataset.seller.localeCompare(b.row.dataset.seller);
+        a.seller.localeCompare(b.seller);
+    });
+
+    rows.forEach(function (row) {
+      row.querySelector(".buyer-rank").textContent = "—";
+      row.querySelector(".buyer-score").textContent = "—";
+      row.querySelector(".buyer-quantity").textContent = "0";
     });
 
     let remaining = target;
-    let purchasedUnits = 0;
-    let estimatedCost = 0;
+    let totalUnits = 0;
+    let totalCost = 0;
 
-    offers.forEach(function (offer) {
-      offer.row.querySelector(".buyer-quantity").textContent = "0";
-    });
+    valid.forEach(function (offer, index) {
+      const quantity = Math.min(remaining, offer.stock);
 
-    let index = 0;
-
-    while (index < offers.length && remaining > 0) {
-      let end = index + 1;
-
-      while (
-        end < offers.length &&
-        Math.abs(offers[end].score - offers[index].score) < 0.000001 &&
-        offers[end].price === offers[index].price
-      ) {
-        end++;
-      }
-
-      const tiedOffers = offers.slice(index, end);
-      let active = tiedOffers.filter(function (offer) {
-        return offer.stock > 0;
-      });
-
-      while (remaining > 0 && active.length > 0) {
-        const share = Math.max(1, Math.floor(remaining / active.length));
-        let allocatedThisRound = 0;
-
-        active.forEach(function (offer) {
-          const quantityCell = offer.row.querySelector(".buyer-quantity");
-          const current = Number(quantityCell.textContent) || 0;
-          const available = offer.stock - current;
-          const quantity = Math.min(
-            share,
-            available,
-            remaining - allocatedThisRound
-          );
-
-          if (quantity > 0) {
-            quantityCell.textContent = String(current + quantity);
-            allocatedThisRound += quantity;
-          }
-        });
-
-        remaining -= allocatedThisRound;
-
-        active = active.filter(function (offer) {
-          const current = Number(
-            offer.row.querySelector(".buyer-quantity").textContent
-          ) || 0;
-          return current < offer.stock;
-        });
-
-        if (allocatedThisRound === 0) break;
-      }
-
-      index = end;
-    }
-
-    offers.forEach(function (offer, offerIndex) {
-      const quantity = Number(
-        offer.row.querySelector(".buyer-quantity").textContent
-      ) || 0;
-
-      offer.row.querySelector(".buyer-rank").textContent =
-        String(offerIndex + 1);
+      offer.row.querySelector(".buyer-rank").textContent = index + 1;
       offer.row.querySelector(".buyer-score").textContent =
         offer.score.toFixed(1);
+      offer.row.querySelector(".buyer-quantity").textContent = quantity;
 
-      purchasedUnits += quantity;
-      estimatedCost += quantity * offer.price;
+      remaining -= quantity;
+      totalUnits += quantity;
+      totalCost += quantity * offer.price;
     });
 
-    const rankedRows = new Set(offers.map(function (offer) {
-      return offer.row;
-    }));
-
-    offers.forEach(function (offer) {
-      tbody.appendChild(offer.row);
+    valid.forEach(function (offer) {
+      body.appendChild(offer.row);
     });
 
-    rows.filter(function (row) {
-      return !rankedRows.has(row);
-    }).forEach(function (row) {
-      tbody.appendChild(row);
+    document.getElementById("buyer-total-units").textContent = totalUnits;
+    document.getElementById("buyer-total-cost").textContent =
+      "$" + totalCost.toFixed(2);
+    document.getElementById("buyer-offer-count").textContent = valid.length;
+
+    status.textContent = valid.length
+      ? "Strategy calculated. " + remaining +
+        " requested units could not be allocated because of available stock."
+      : "No valid offers with available stock. Check price, quality, and stock.";
+  }
+
+  document.getElementById("run-buyer-strategy")
+    .addEventListener("click", runStrategy);
+
+  document.getElementById("reset-buyer-inputs")
+    .addEventListener("click", function () {
+      if (!confirm(
+        "Reset saved prices, quality ratings, and images in this browser?"
+      )) {
+        return;
+      }
+
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
     });
 
-    totalUnits.textContent = String(purchasedUnits);
-    totalCost.textContent = "$" + estimatedCost.toFixed(2);
-    unfilled.textContent = String(remaining);
+  function updateClock() {
+    document.getElementById("buyer-clock").textContent =
+      "Current Eastern Time: " +
+      new Date().toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        dateStyle: "medium",
+        timeStyle: "medium"
+      });
+  }
 
-    summary.textContent =
-      "Recommendation complete: " + purchasedUnits +
-      " of " + target + " requested toys, estimated cost $" +
-      estimatedCost.toFixed(2) + ". " +
-      (remaining > 0
-        ? "Listed stock cannot meet the full target."
-        : "The target is met without exceeding any offer's stock.") +
-      (invalidCount > 0
-        ? " " + invalidCount + " offer(s) have invalid data or ratings."
-        : "");
-  });
+  restoreRows();
+  updateClock();
+  runStrategy();
+  setInterval(updateClock, 1000);
 })();
 </script>
-
-<section class="grid two">
-  <div class="card">
-    <h2>Run Next Market Day</h2>
-    <p>
-      Run a simulation using the configured customer mix and carried
-      inventory. The same seed, inputs, and starting state should produce
-      reproducible results.
-    </p>
-
-    <form method="post" action="{{ url_for('run_day') }}">
-      {% if not demo_mode %}
-      <label for="admin_token">Market operator token</label>
-      <input id="admin_token" name="admin_token" type="password" required>
-      {% endif %}
-
-      <label for="seed">Random seed (optional)</label>
-      <input id="seed" name="seed" type="number" placeholder="Use configured default">
-
-      <button type="submit" {% if not validation.valid %}disabled{% endif %}>
-        Run Simulation
-      </button>
-    </form>
-
-    {% if latest %}
-    <p class="muted">
-      Latest run: Day {{ latest.day }},
-      {% if config.publish_seed %}seed {{ latest.seed }}, {% endif %}
-      {{ latest.transactions }} transactions,
-      {{ latest.units_sold }} units,
-      {{ latest.no_purchase_count or 0 }} customers bought nothing,
-      ${{ "%.2f"|format(latest.revenue) }} revenue.
-    </p>
-    {% endif %}
-
-    <form method="post" action="{{ url_for('reset') }}"
-      onsubmit="return confirm('Reset demo inventory and transactions? The audit log is preserved.');">
-      {% if not demo_mode %}
-      <label for="reset_admin_token">Market operator token</label>
-      <input id="reset_admin_token" name="admin_token" type="password" required>
-      {% endif %}
-      <button class="secondary" type="submit">Reset Demo State</button>
-    </form>
-
-    <p class="muted">
-      Protect administrative actions with authentication before using
-      this publicly for real transactions.
-    </p>
-  </div>
-
-  <div class="card">
-    <h2>Replay / Compare Pricing Strategies</h2>
-    <p>
-      Compare two prices for one selected seller while holding competitor offers,
-      starting virtual inventory, customer profiles, histories, and the random seed
-      constant. Replays never change the official market ledger.
-    </p>
-
-    <form method="post" action="{{ url_for('replay') }}" class="form-row">
-      <div>
-        <label for="strategy_seller_id">Seller to test</label>
-        <select id="strategy_seller_id" name="strategy_seller_id" required>
-          {% for seller_id in offers|map(attribute='seller_id')|unique %}
-          <option value="{{ seller_id }}">{{ seller_id }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label for="replay-seed">Same random seed</label>
-        <input id="replay-seed" name="seed" type="number" value="100" required>
-      </div>
-
-      <div>
-        <label for="multiplier_a">Strategy A price multiplier</label>
-        <input id="multiplier_a" name="multiplier_a" type="number" min="0.01" max="10" step="0.01" value="1.00" required>
-      </div>
-
-      <div>
-        <label for="multiplier_b">Strategy B price multiplier</label>
-        <input id="multiplier_b" name="multiplier_b" type="number" min="0.01" max="10" step="0.01" value="0.90" required>
-      </div>
-
-      <button type="submit">Compare Pricing Strategies</button>
-    </form>
-  </div>
-</section>
-
-<section class="card">
-  <h2>Aggregate Market Results</h2>
-
-  <div class="metrics">
-    <div>
-      <strong>{{ aggregate.transaction_count }}</strong>
-      <span>Transactions</span>
-    </div>
-    <div>
-      <strong>{{ aggregate.units_sold }}</strong>
-      <span>Units Sold</span>
-    </div>
-    <div>
-      <strong>${{ "%.2f"|format(aggregate.revenue) }}</strong>
-      <span>Gross Revenue</span>
-    </div>
-  </div>
-
-  <h3>Results by Seller</h3>
-  {% if aggregate.by_seller %}
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Seller</th>
-          <th>Transactions</th>
-          <th>Units</th>
-          <th>Revenue</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in aggregate.by_seller %}
-        <tr>
-          <td>{{ s.seller_name }} ({{ s.seller_id }})</td>
-          <td>{{ s.transactions }}</td>
-          <td>{{ s.units }}</td>
-          <td>${{ "%.2f"|format(s.revenue) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <p>No transactions recorded yet. Run a simulation to create results.</p>
-  {% endif %}
-
-  <div class="download-row">
-    <a class="button-link" href="{{ url_for('download_transactions') }}">Download Transactions CSV</a>
-    <a class="button-link outline" href="{{ url_for('download_results') }}">Download Results JSON</a>
-    <a class="button-link outline" href="{{ url_for('download_audit') }}">Download Audit Log</a>
-  </div>
-</section>
-
 {% endblock %}
+
+
