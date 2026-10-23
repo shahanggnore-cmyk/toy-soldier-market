@@ -2,547 +2,361 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Toy Soldier Market — Buyer Portal</title>
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
-      line-height: 1.5;
-    }
-
-    header {
-      background: #0f172a;
-      color: white;
-      padding: 24px;
-    }
-
-    header h1 { margin: 0 0 6px; }
-
-    main {
-      max-width: 1100px;
-      margin: 24px auto;
-      padding: 0 16px 40px;
-    }
-
-    section {
-      background: white;
-      padding: 22px;
-      margin-bottom: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px #0000000c;
-    }
-
-    h2 { margin-top: 0; }
-
-    .groups {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 12px;
-    }
-
-    .group {
-      padding: 15px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      background: #f8fafc;
-    }
-
-    .group h3 { margin-top: 0; }
-
-    .settings {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 18px;
-      align-items: end;
-      margin-bottom: 18px;
-    }
-
-    label {
-      display: block;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    input, select {
-      width: 100%;
-      min-width: 90px;
-      padding: 9px;
-      border: 1px solid #94a3b8;
-      border-radius: 5px;
-      font-size: 15px;
-    }
-
-    .setting { min-width: 150px; }
-
-    .table-wrap { overflow-x: auto; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 650px;
-    }
-
-    th, td {
-      text-align: left;
-      padding: 11px;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    th { background: #f1f5f9; }
-
-    td input { width: 85px; }
-
-    button {
-      border: 0;
-      border-radius: 6px;
-      padding: 11px 17px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: bold;
-      margin: 5px 6px 5px 0;
-    }
-
-    .primary {
-      background: #2563eb;
-      color: white;
-    }
-
-    .secondary {
-      background: #e2e8f0;
-      color: #0f172a;
-    }
-
-    button:hover { opacity: 0.88; }
-
-    .status {
-      padding: 12px;
-      margin-top: 12px;
-      border-radius: 6px;
-      background: #dcfce7;
-      color: #166534;
-      display: none;
-    }
-
-    .note { color: #64748b; font-size: 14px; }
-
-    .score { font-weight: bold; }
-
-    @media (max-width: 600px) {
-      header { padding: 18px; }
-      section { padding: 16px; }
-      .setting { width: 100%; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toy Soldier Market — Buyer Portal</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#1e293b;line-height:1.5}
+header{background:#0f172a;color:white;padding:24px}
+header h1{margin:0 0 6px}
+main{max-width:1150px;margin:24px auto;padding:0 16px 40px}
+section{background:white;padding:22px;margin-bottom:20px;border-radius:10px;box-shadow:0 2px 8px #0000000c}
+h2{margin-top:0}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.group{padding:14px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc}
+.group h3{margin-top:0}
+.settings{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin-bottom:18px}
+.setting{min-width:150px}
+label{display:block;font-weight:bold;margin-bottom:5px}
+input,select{width:100%;min-width:85px;padding:9px;border:1px solid #94a3b8;border-radius:5px;font-size:15px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #e2e8f0}
+th{background:#f1f5f9}
+td input{width:85px}
+button{border:0;border-radius:6px;padding:11px 17px;cursor:pointer;font-size:15px;font-weight:bold;margin:5px 6px 5px 0}
+.primary{background:#2563eb;color:white}
+.secondary{background:#e2e8f0;color:#0f172a}
+button:hover{opacity:.88}
+.status{padding:12px;margin-top:12px;border-radius:6px;background:#dcfce7;color:#166534;display:none}
+.note{color:#64748b;font-size:14px}
+.meta{display:flex;gap:24px;flex-wrap:wrap;margin-top:12px;font-size:14px;color:#cbd5e1}
+@media(max-width:600px){header{padding:18px}section{padding:16px}.setting{width:100%}}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Toy Soldier Market — Buyer Portal</h1>
-    <div>Buyer strategy, offer comparison, and quantity recommendations</div>
-  </header>
+<header>
+  <h1>Toy Soldier Market — Buyer Portal</h1>
+  <div>Buyer strategy, offer comparison, and quantity recommendations</div>
+  <div class="meta">
+    <div>Current Eastern Time: <strong id="currentTime">Loading...</strong></div>
+    <div>Last Changed: <strong id="lastChanged">Never</strong></div>
+  </div>
+</header>
 
-  <main>
-    <section>
-      <h2>Seller Directory</h2>
-      <div class="groups">
-        <div class="group">
-          <h3>Group 1</h3>
-          <ul>
-            <li>Frank Baiata</li>
-            <li>Justin Meyer</li>
-            <li>Giovanni Pugni</li>
-            <li>Ronald Levantini</li>
-            <li>Ahmaed Thomas</li>
-          </ul>
-        </div>
-        <div class="group">
-          <h3>Group 2</h3>
-          <ul>
-            <li>Alif Zaman</li>
-            <li>Gurkirat Singh</li>
-            <li>Jeantonio Stsurin</li>
-            <li>Matthew Fuller</li>
-            <li>Kevin Yu</li>
-          </ul>
-        </div>
-        <div class="group">
-          <h3>Group 3</h3>
-          <ul>
-            <li>Benji Sanoff-Wiener</li>
-            <li>Cyrus Hossain</li>
-            <li>Dhrew Gandhi</li>
-            <li>Maximus Crilly</li>
-            <li>Zach Mushorn</li>
-          </ul>
-        </div>
-        <div class="group">
-          <h3>Group 4 (Buyers)</h3>
-          <ul>
-            <li>Ryan Edwards</li>
-            <li>Kenneth LeGare</li>
-            <li>Jomar Lubin</li>
-            <li>Shahan Saeed</li>
-            <li>Dorant Esty</li>
-          </ul>
-        </div>
-        <div class="group">
-          <h3>Group 5</h3>
-          <ul>
-            <li>Joseph Rivera</li>
-            <li>Joel Rodriguez</li>
-            <li>Timothy Bas</li>
-            <li>D'Angelo</li>
-            <li>Alex</li>
-          </ul>
-        </div>
-      </div>
-    </section>
+<main>
+<section>
+  <h2>Seller and Buyer Directory</h2>
+  <div class="groups">
+    <div class="group"><h3>Group 1</h3><ul>
+      <li>Frank Baiata</li><li>Justin Meyer</li><li>Giovanni Pugni</li><li>Ronald Levantini</li><li>Ahmaed Thomas</li>
+    </ul></div>
+    <div class="group"><h3>Group 2</h3><ul>
+      <li>Alif Zaman</li><li>Gurkirat Singh</li><li>Jeantonio Stsurin</li><li>Matthew Fuller</li><li>Kevin Yu</li>
+    </ul></div>
+    <div class="group"><h3>Group 3</h3><ul>
+      <li>Benji Sanoff-Wiener</li><li>Cyrus Hossain</li><li>Dhrew Gandhi</li><li>Maximus Crilly</li><li>Zach Mushorn</li>
+    </ul></div>
+    <div class="group"><h3>Group 4 (Buyers)</h3><ul>
+      <li>Ryan Edwards</li><li>Kenneth LeGare</li><li>Jomar Lubin</li><li>Shahan Saeed</li><li>Dorant Esty</li>
+    </ul></div>
+    <div class="group"><h3>Group 5</h3><ul>
+      <li>Joseph Rivera</li><li>Joel Rodriguez</li><li>Timothy Bas</li><li>D'Angelo</li><li>Alex</li>
+    </ul></div>
+  </div>
+</section>
 
-    <section>
-      <h2>Buyer Strategy and Quality Comparison</h2>
-      <p>
-        Enter each group's offer price, quality rating, and available stock.
-        Scores rank affordability and quality. Recommended quantities are
-        distributed proportionally to scores without exceeding stock.
-      </p>
+<section>
+  <h2>Buyer Strategy and Quality Comparison</h2>
+  <p>Adjust prices, quality ratings, and available stock. The score combines price affordability and quality. Recommended quantities are allocated proportionally to scores without exceeding stock.</p>
 
-      <div class="settings">
-        <div class="setting">
-          <label for="qualityWeight">Quality Weight</label>
-          <select id="qualityWeight">
-            <option value="0.25">25%</option>
-            <option value="0.5" selected>50%</option>
-            <option value="0.75">75%</option>
-            <option value="1">100%</option>
-          </select>
-        </div>
-        <div class="setting">
-          <label for="targetQuantity">Target Quantity</label>
-          <input id="targetQuantity" type="number" min="0" step="1" value="10">
-        </div>
-      </div>
+  <div class="settings">
+    <div class="setting">
+      <label for="priceWeight">Price Weight (%)</label>
+      <input id="priceWeight" type="number" min="0" max="100" step="5" value="50">
+    </div>
+    <div class="setting">
+      <label for="qualityWeight">Quality Weight (%)</label>
+      <input id="qualityWeight" type="number" min="0" max="100" step="5" value="50">
+    </div>
+    <div class="setting">
+      <label for="targetQuantity">Target Quantity</label>
+      <input id="targetQuantity" type="number" min="0" step="1" value="10">
+    </div>
+  </div>
+  <p class="note" id="weightNote">Price Weight + Quality Weight must equal 100%.</p>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Buyers Group</th>
-              <th>Offer Price ($)</th>
-              <th>Quality (1–10)</th>
-              <th>Available Stock</th>
-              <th>Score / 100</th>
-              <th>Recommended Quantity</th>
-            </tr>
-          </thead>
-          <tbody id="offerRows">
-            <tr data-group="1">
-              <td>Group 1</td>
-              <td><input class="price" type="number" min="0" step="0.01" value="10"></td>
-              <td><input class="quality" type="number" min="1" max="10" step="1" value="8"></td>
-              <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-              <td class="score">—</td>
-              <td class="recommended">—</td>
-            </tr>
-            <tr data-group="2">
-              <td>Group 2</td>
-              <td><input class="price" type="number" min="0" step="0.01" value="10"></td>
-              <td><input class="quality" type="number" min="1" max="10" step="1" value="7"></td>
-              <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-              <td class="score">—</td>
-              <td class="recommended">—</td>
-            </tr>
-            <tr data-group="3">
-              <td>Group 3</td>
-              <td><input class="price" type="number" min="0" step="0.01" value="10"></td>
-              <td><input class="quality" type="number" min="1" max="10" step="1" value="6"></td>
-              <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-              <td class="score">—</td>
-              <td class="recommended">—</td>
-            </tr>
-            <tr data-group="5">
-              <td>Group 5</td>
-              <td><input class="price" type="number" min="0" step="0.01" value="10"></td>
-              <td><input class="quality" type="number" min="1" max="10" step="1" value="5"></td>
-              <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-              <td class="score">—</td>
-              <td class="recommended">—</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Seller Group</th><th>Offer Price ($)</th><th>Quality (1–10)</th>
+        <th>Available Stock</th><th>Score / 100</th><th>Recommended Quantity</th>
+      </tr></thead>
+      <tbody id="offerRows">
+        <tr data-group="1"><td>Group 1</td>
+          <td><input class="price" type="number" min="0" step=".01" value="10"></td>
+          <td><input class="quality" type="number" min="1" max="10" step="1" value="8"></td>
+          <td><input class="stock" type="number" min="0" step="1" value="10"></td>
+          <td class="score">—</td><td class="recommended">—</td>
+        </tr>
+        <tr data-group="2"><td>Group 2</td>
+          <td><input class="price" type="number" min="0" step=".01" value="10"></td>
+          <td><input class="quality" type="number" min="1" max="10" step="1" value="7"></td>
+          <td><input class="stock" type="number" min="0" step="1" value="10"></td>
+          <td class="score">—</td><td class="recommended">—</td>
+        </tr>
+        <tr data-group="3"><td>Group 3</td>
+          <td><input class="price" type="number" min="0" step=".01" value="10"></td>
+          <td><input class="quality" type="number" min="1" max="10" step="1" value="6"></td>
+          <td><input class="stock" type="number" min="0" step="1" value="10"></td>
+          <td class="score">—</td><td class="recommended">—</td>
+        </tr>
+        <tr data-group="5"><td>Group 5</td>
+          <td><input class="price" type="number" min="0" step=".01" value="10"></td>
+          <td><input class="quality" type="number" min="1" max="10" step="1" value="5"></td>
+          <td><input class="stock" type="number" min="0" step="1" value="10"></td>
+          <td class="score">—</td><td class="recommended">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-      <p class="note">
-        Group 4 is your buyer team, so it is listed in the directory but is not
-        treated as a seller offer in the calculation.
-      </p>
+  <button class="primary" id="saveButton">Save Changes</button>
+  <button class="secondary" id="calculateButton">Recalculate Scores</button>
+  <button class="secondary" id="resetButton">Reset Demo Settings</button>
+  <div id="saveStatus" class="status" role="status" aria-live="polite"></div>
+  <div id="calculationStatus" class="status" role="status" aria-live="polite"></div>
+  <p class="note">Saved settings are stored in this browser. This page does not submit purchases or update the server-side market ledger.</p>
+</section>
+</main>
 
-      <button class="primary" id="saveButton">Save Changes</button>
-      <button class="secondary" id="calculateButton">Recalculate Scores</button>
-      <button class="secondary" id="resetButton">Reset Demo Settings</button>
+<script>
+const STORAGE_KEY = "toySoldierBuyerOffersV8";
+const rows = () => Array.from(document.querySelectorAll("#offerRows tr"));
 
-      <div id="saveStatus" class="status" role="status" aria-live="polite"></div>
-      <div id="calculationStatus" class="status" role="status" aria-live="polite"></div>
-    </section>
-  </main>
+function message(id, text) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display = "block";
+}
+function hide(id) {
+  document.getElementById(id).style.display = "none";
+}
+function updateClock() {
+  document.getElementById("currentTime").textContent =
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      dateStyle: "medium",
+      timeStyle: "medium",
+      timeZoneName: "short"
+    }).format(new Date());
+}
+updateClock();
+setInterval(updateClock, 1000);
 
-  <script>
-    const STORAGE_KEY = "toySoldierBuyerOffersV7";
+function readSettings() {
+  return {
+    priceWeight: document.getElementById("priceWeight").value,
+    qualityWeight: document.getElementById("qualityWeight").value,
+    targetQuantity: document.getElementById("targetQuantity").value,
+    offers: rows().map(row => ({
+      group: row.dataset.group,
+      price: row.querySelector(".price").value,
+      quality: row.querySelector(".quality").value,
+      stock: row.querySelector(".stock").value
+    }))
+  };
+}
 
-    const rows = () =>
-      Array.from(document.querySelectorAll("#offerRows tr"));
+function validateWeights() {
+  const priceWeight = Number(document.getElementById("priceWeight").value);
+  const qualityWeight = Number(document.getElementById("qualityWeight").value);
+  if (!Number.isFinite(priceWeight) || !Number.isFinite(qualityWeight) ||
+      priceWeight < 0 || priceWeight > 100 ||
+      qualityWeight < 0 || qualityWeight > 100 ||
+      priceWeight + qualityWeight !== 100) {
+    throw new Error("Price Weight and Quality Weight must add up to 100%.");
+  }
+  return { priceWeight: priceWeight / 100, qualityWeight: qualityWeight / 100 };
+}
 
-    function readSettings() {
+function calculate() {
+  hide("calculationStatus");
+  const weights = validateWeights();
+  const target = Number(document.getElementById("targetQuantity").value);
+
+  if (!Number.isInteger(target) || target < 0) {
+    throw new Error("Target Quantity must be a whole number of zero or more.");
+  }
+
+  const offers = rows().map((row, index) => {
+    const price = Number(row.querySelector(".price").value);
+    const quality = Number(row.querySelector(".quality").value);
+    const stock = Number(row.querySelector(".stock").value);
+
+    if (!Number.isFinite(price) || price < 0 ||
+        !Number.isFinite(quality) || quality < 1 || quality > 10 ||
+        !Number.isInteger(stock) || stock < 0) {
+      throw new Error("Check prices, quality ratings (1–10), and whole-number stock amounts.");
+    }
+    return { row, index, price, quality, stock, score: 0, quantity: 0 };
+  });
+
+  const positivePrices = offers.map(o => o.price).filter(p => p > 0);
+  const cheapest = positivePrices.length ? Math.min(...positivePrices) : 0;
+
+  offers.forEach(o => {
+    let affordability;
+    if (o.price === 0) affordability = 100;
+    else if (cheapest === 0) affordability = 0;
+    else affordability = Math.min(100, cheapest / o.price * 100);
+
+    const qualityScore = o.quality * 10;
+    o.score = affordability * weights.priceWeight +
+              qualityScore * weights.qualityWeight;
+  });
+
+  let remaining = target;
+  let active = offers.filter(o => o.stock > 0);
+
+  while (remaining > 0 && active.length > 0) {
+    const totalWeight = active.reduce((sum, o) =>
+      sum + Math.pow(Math.max(o.score, 1), 2), 0);
+    const roundQuantity = remaining;
+    const shares = active.map(o => {
+      const ideal = roundQuantity * Math.pow(Math.max(o.score, 1), 2) / totalWeight;
       return {
-        qualityWeight: document.getElementById("qualityWeight").value,
-        targetQuantity: document.getElementById("targetQuantity").value,
-        offers: rows().map(row => ({
-          group: row.dataset.group,
-          price: row.querySelector(".price").value,
-          quality: row.querySelector(".quality").value,
-          stock: row.querySelector(".stock").value
-        }))
+        offer: o,
+        amount: Math.min(o.stock - o.quantity, Math.floor(ideal)),
+        fraction: ideal - Math.floor(ideal)
       };
-    }
-
-    function showMessage(elementId, message) {
-      const element = document.getElementById(elementId);
-      element.textContent = message;
-      element.style.display = "block";
-    }
-
-    function hideMessage(elementId) {
-      document.getElementById(elementId).style.display = "none";
-    }
-
-    function calculate() {
-      const offerRows = rows();
-      const targetInput = document.getElementById("targetQuantity");
-      const weightInput = document.getElementById("qualityWeight");
-      const target = Number(targetInput.value);
-      const weight = Number(weightInput.value);
-
-      hideMessage("calculationStatus");
-
-      if (!Number.isInteger(target) || target < 0) {
-        showMessage("calculationStatus",
-          "Enter a valid whole-number target quantity of zero or more.");
-        return false;
-      }
-
-      const offers = offerRows.map((row, index) => {
-        const price = Number(row.querySelector(".price").value);
-        const quality = Number(row.querySelector(".quality").value);
-        const stock = Number(row.querySelector(".stock").value);
-
-        if (!Number.isFinite(price) || price < 0 ||
-            !Number.isFinite(quality) || quality < 1 || quality > 10 ||
-            !Number.isInteger(stock) || stock < 0) {
-          throw new Error(
-            "Enter prices of zero or more, quality ratings from 1 to 10, " +
-            "and whole-number stock amounts of zero or more."
-          );
-        }
-
-        return { row, index, price, quality, stock, score: 0, quantity: 0 };
-      });
-
-      const positivePrices = offers
-        .map(offer => offer.price)
-        .filter(price => price > 0);
-      const cheapestPrice = positivePrices.length
-        ? Math.min(...positivePrices)
-        : 0;
-
-      offers.forEach(offer => {
-        let affordability;
-
-        if (offer.price === 0) {
-          affordability = 100;
-        } else if (cheapestPrice === 0) {
-          affordability = 0;
-        } else {
-          affordability = Math.min(
-            100, (cheapestPrice / offer.price) * 100
-          );
-        }
-
-        const qualityScore = offer.quality * 10;
-
-        offer.score =
-          qualityScore * weight + affordability * (1 - weight);
-      });
-
-      let remaining = target;
-      let active = offers.filter(offer => offer.stock > 0);
-
-      // Repeated proportional allocation, respecting each offer's stock.
-      while (remaining > 0 && active.length > 0) {
-        const totalWeight = active.reduce(
-          (sum, offer) => sum + Math.pow(Math.max(offer.score, 1), 2),
-          0
-        );
-
-        const roundQuantity = remaining;
-        const shares = active.map(offer => {
-          const ideal = roundQuantity *
-            Math.pow(Math.max(offer.score, 1), 2) / totalWeight;
-          const room = offer.stock - offer.quantity;
-          return {
-            offer,
-            ideal,
-            amount: Math.min(room, Math.floor(ideal)),
-            fraction: ideal - Math.floor(ideal)
-          };
-        });
-
-        let allocated = 0;
-
-        shares.forEach(share => {
-          share.offer.quantity += share.amount;
-          allocated += share.amount;
-        });
-
-        remaining -= allocated;
-
-        if (remaining > 0) {
-          shares.sort((a, b) =>
-            b.fraction - a.fraction ||
-            b.offer.score - a.offer.score ||
-            a.offer.index - b.offer.index
-          );
-
-          let extra = 0;
-
-          for (const share of shares) {
-            if (remaining <= 0) break;
-            if (share.offer.quantity < share.offer.stock) {
-              share.offer.quantity++;
-              remaining--;
-              extra++;
-            }
-          }
-
-          if (allocated === 0 && extra === 0) break;
-        }
-
-        active = offers.filter(offer =>
-          offer.quantity < offer.stock
-        );
-
-        if (allocated === 0 && active.length === 0) break;
-      }
-
-      offers.forEach(offer => {
-        offer.row.querySelector(".score").textContent =
-          offer.score.toFixed(2);
-        offer.row.querySelector(".recommended").textContent =
-          offer.quantity;
-      });
-
-      const requestedUnallocated = remaining;
-      showMessage(
-        "calculationStatus",
-        "Prices and quality scores updated successfully. " +
-        "Recommended quantities have been recalculated. " +
-        requestedUnallocated +
-        " requested units could not be allocated because of available stock."
-      );
-
-      return true;
-    }
-
-    document.getElementById("saveButton").addEventListener("click", () => {
-      try {
-        if (!calculate()) return;
-
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(readSettings()));
-        showMessage("saveStatus", "Changes saved successfully!");
-      } catch (error) {
-        showMessage("saveStatus",
-          "Could not save changes: " + error.message);
-      }
     });
 
-    document.getElementById("calculateButton").addEventListener("click", () => {
-      try {
-        calculate();
-      } catch (error) {
-        showMessage("calculationStatus", error.message);
-      }
+    let allocated = 0;
+    shares.forEach(s => {
+      s.offer.quantity += s.amount;
+      allocated += s.amount;
     });
+    remaining -= allocated;
 
-    document.getElementById("resetButton").addEventListener("click", () => {
-      localStorage.removeItem(STORAGE_KEY);
-      document.getElementById("qualityWeight").value = "0.5";
-      document.getElementById("targetQuantity").value = "10";
-
-      const defaults = [
-        { price: 10, quality: 8, stock: 10 },
-        { price: 10, quality: 7, stock: 10 },
-        { price: 10, quality: 6, stock: 10 },
-        { price: 10, quality: 5, stock: 10 }
-      ];
-
-      rows().forEach((row, index) => {
-        row.querySelector(".price").value = defaults[index].price;
-        row.querySelector(".quality").value = defaults[index].quality;
-        row.querySelector(".stock").value = defaults[index].stock;
-      });
-
-      hideMessage("saveStatus");
-
-      try {
-        calculate();
-        showMessage("saveStatus", "Demo settings reset.");
-      } catch (error) {
-        showMessage("saveStatus", error.message);
-      }
-    });
-
-    function loadSavedSettings() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) {
-          calculate();
-          return;
+    if (remaining > 0) {
+      shares.sort((a, b) =>
+        b.fraction - a.fraction ||
+        b.offer.score - a.offer.score ||
+        a.offer.index - b.offer.index);
+      let extra = 0;
+      for (const s of shares) {
+        if (remaining <= 0) break;
+        if (s.offer.quantity < s.offer.stock) {
+          s.offer.quantity++;
+          remaining--;
+          extra++;
         }
-
-        const settings = JSON.parse(saved);
-        document.getElementById("qualityWeight").value =
-          settings.qualityWeight ?? "0.5";
-        document.getElementById("targetQuantity").value =
-          settings.targetQuantity ?? "10";
-
-        const savedByGroup = new Map(
-          (settings.offers || []).map(offer => [String(offer.group), offer])
-        );
-
-        rows().forEach(row => {
-          const offer = savedByGroup.get(row.dataset.group);
-          if (!offer) return;
-
-          row.querySelector(".price").value = offer.price;
-          row.querySelector(".quality").value = offer.quality;
-          row.querySelector(".stock").value = offer.stock;
-        });
-
-        calculate();
-      } catch (error) {
-        showMessage("saveStatus",
-          "Saved settings could not be loaded: " + error.message);
       }
+      if (allocated === 0 && extra === 0) break;
     }
+    active = offers.filter(o => o.quantity < o.stock);
+    if (allocated === 0 && active.length === 0) break;
+  }
 
-    loadSavedSettings();
-  </script>
+  offers.forEach(o => {
+    o.row.querySelector(".score").textContent = o.score.toFixed(2);
+    o.row.querySelector(".recommended").textContent = o.quantity;
+  });
+
+  message("calculationStatus",
+    "Prices and quality scores updated successfully. Recommended quantities recalculated. " +
+    remaining + " requested units could not be allocated because of available stock.");
+  return true;
+}
+
+function saveSettings() {
+  try {
+    calculate();
+    const now = new Date().toISOString();
+    const settings = readSettings();
+    settings.lastChanged = now;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    document.getElementById("lastChanged").textContent =
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZoneName: "short"
+      }).format(new Date(now));
+    message("saveStatus", "Changes saved successfully!");
+  } catch (err) {
+    message("saveStatus", err.message);
+  }
+}
+
+document.getElementById("saveButton").addEventListener("click", saveSettings);
+document.getElementById("calculateButton").addEventListener("click", () => {
+  try { calculate(); }
+  catch (err) { message("calculationStatus", err.message); }
+});
+
+document.getElementById("resetButton").addEventListener("click", () => {
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById("priceWeight").value = 50;
+  document.getElementById("qualityWeight").value = 50;
+  document.getElementById("targetQuantity").value = 10;
+  const defaults = [
+    { price: 10, quality: 8, stock: 10 },
+    { price: 10, quality: 7, stock: 10 },
+    { price: 10, quality: 6, stock: 10 },
+    { price: 10, quality: 5, stock: 10 }
+  ];
+  rows().forEach((row, i) => {
+    row.querySelector(".price").value = defaults[i].price;
+    row.querySelector(".quality").value = defaults[i].quality;
+    row.querySelector(".stock").value = defaults[i].stock;
+  });
+  document.getElementById("lastChanged").textContent = "Never";
+  hide("saveStatus");
+  try {
+    calculate();
+    message("saveStatus", "Demo settings reset. Click Save Changes to save them.");
+  } catch (err) {
+    message("saveStatus", err.message);
+  }
+});
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { calculate(); return; }
+    const settings = JSON.parse(raw);
+    document.getElementById("priceWeight").value = settings.priceWeight ?? 50;
+    document.getElementById("qualityWeight").value = settings.qualityWeight ?? 50;
+    document.getElementById("targetQuantity").value = settings.targetQuantity ?? 10;
+
+    const savedByGroup = new Map((settings.offers || []).map(o => [String(o.group), o]));
+    rows().forEach(row => {
+      const saved = savedByGroup.get(row.dataset.group);
+      if (!saved) return;
+      row.querySelector(".price").value = saved.price;
+      row.querySelector(".quality").value = saved.quality;
+      row.querySelector(".stock").value = saved.stock;
+    });
+
+    if (settings.lastChanged) {
+      document.getElementById("lastChanged").textContent =
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZoneName: "short"
+        }).format(new Date(settings.lastChanged));
+    }
+    calculate();
+  } catch (err) {
+    message("saveStatus", "Saved settings could not be loaded: " + err.message);
+  }
+}
+
+loadSettings();
+</script>
 </body>
 </html>
-
-
-
-
