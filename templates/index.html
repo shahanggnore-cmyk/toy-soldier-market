@@ -86,7 +86,7 @@
   <h1>Toy Soldier Market — Buyer Portal</h1>
   <p class="buyer-muted">
     Compare seller offers, adjust prices and quality ratings, and calculate
-    recommended purchases. Your changes are saved in this browser.
+    recommended purchases. Price and quality changes are saved in this browser.
   </p>
 
   <section class="buyer-panel">
@@ -111,8 +111,8 @@
   <section class="buyer-panel">
     <h2>Available Toy Offers</h2>
     <p class="buyer-muted">
-      The groups stay in the same positions. Change price and quality, then run
-      the strategy to update scores and recommended quantities.
+      Groups stay in the same positions. Similar-scoring offers can share the
+      target quantity, while a clearly superior offer can receive all available units.
     </p>
 
     <div style="margin-bottom:14px;">
@@ -171,7 +171,6 @@
         {% if offers is defined and offers %}
           {% for offer in offers %}
             {% set group_value = offer.group if offer.group is defined else offer.seller if offer.seller is defined else "" %}
-            {% set group_number = loop.index %}
             <tr class="buyer-offer-row"
                 data-key="{{ offer.id if offer.id is defined else loop.index0 }}"
                 data-stock="{{ offer.stock if offer.stock is defined else 10 }}">
@@ -185,7 +184,7 @@
                 {% elif group_value|string|lower|trim in ["group 4", "g4", "4"] %}
                   Group 4
                 {% else %}
-                  Group {{ group_number if group_number <= 4 else 4 }}
+                  Group {{ loop.index if loop.index <= 4 else 4 }}
                 {% endif %}
               </td>
               <td class="buyer-toy">
@@ -235,26 +234,20 @@
   <section class="buyer-panel">
     <h2>Buyer Strategy and Quality Comparison</h2>
     <p>
-      The strategy scores offers using your quality and affordability preferences,
-      then recommends purchases without exceeding available stock. Recommendations
-      do not place actual orders.
+      Offers are scored using quality and affordability preferences. Similar-scoring
+      offers can share recommended purchases, while significantly better offers
+      are favored. Recommendations do not place actual orders.
     </p>
   </section>
 
   <section class="buyer-panel">
     <h2>Simulation</h2>
-    <p>
-      Use the market's configured simulation controls to run market days and
-      review transaction results.
-    </p>
+    <p>Use the market's configured simulation controls to run market days and review results.</p>
   </section>
 
   <section class="buyer-panel">
     <h2>Market Results</h2>
-    <p>
-      Review published aggregate results and transaction records using the
-      market's results links.
-    </p>
+    <p>Review published aggregate results and transaction records using the market's results links.</p>
   </section>
 </div>
 
@@ -262,16 +255,12 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "toySoldierBuyerOffersV5";
+  const STORAGE_KEY = "toySoldierBuyerOffersV6";
   const body = document.getElementById("buyer-offers-body");
   const status = document.getElementById("buyer-status");
 
   function getRows() {
     return Array.from(body.querySelectorAll(".buyer-offer-row"));
-  }
-
-  function rowKey(row) {
-    return String(row.dataset.key);
   }
 
   function readSavedData() {
@@ -284,7 +273,7 @@
 
   function saveRow(row) {
     const saved = readSavedData();
-    saved[rowKey(row)] = {
+    saved[String(row.dataset.key)] = {
       price: row.querySelector(".buyer-price").value,
       quality: row.querySelector(".buyer-quality").value
     };
@@ -301,7 +290,7 @@
     const saved = readSavedData();
 
     getRows().forEach(function (row) {
-      const data = saved[rowKey(row)];
+      const data = saved[String(row.dataset.key)];
       if (!data) return;
 
       if (data.price !== undefined) {
@@ -316,9 +305,7 @@
 
   body.addEventListener("input", function (event) {
     const row = event.target.closest(".buyer-offer-row");
-    if (!row) return;
-
-    if (event.target.matches(".buyer-price, .buyer-quality")) {
+    if (row && event.target.matches(".buyer-price, .buyer-quality")) {
       saveRow(row);
     }
   });
@@ -327,19 +314,21 @@
     const rows = getRows();
     const target = Math.max(
       0,
-      Number(document.getElementById("buyer-target").value) || 0
+      Math.floor(Number(document.getElementById("buyer-target").value) || 0)
     );
-
     const qualityWeight =
       Number(document.getElementById("buyer-quality-weight").value) / 100;
 
-    const offers = rows.map(function (row) {
+    const offers = rows.map(function (row, index) {
       return {
         row: row,
+        index: index,
         group: row.querySelector(".buyer-group").textContent.trim(),
         price: Number(row.querySelector(".buyer-price").value),
         quality: Number(row.querySelector(".buyer-quality").value),
-        stock: Math.max(0, Number(row.dataset.stock) || 0)
+        stock: Math.max(0, Math.floor(Number(row.dataset.stock) || 0)),
+        score: 0,
+        quantity: 0
       };
     });
 
@@ -363,63 +352,100 @@
         ? (offer.price === 0 ? 100 : 0)
         : Math.max(0, Math.min(100, cheapest / offer.price * 100));
 
-      const qualityScore = offer.quality * 10;
-
       offer.score =
-        qualityScore * qualityWeight +
+        (offer.quality * 10) * qualityWeight +
         affordability * (1 - qualityWeight);
     });
 
-    valid.sort(function (a, b) {
+    const ranked = valid.slice().sort(function (a, b) {
       return b.score - a.score ||
         b.quality - a.quality ||
         a.price - b.price ||
-        a.group.localeCompare(b.group);
+        a.index - b.index;
     });
 
+    // Allocate to the best group only when its score clearly exceeds
+    // the next-best offer by at least 15 points.
+    const CLEAR_WIN_MARGIN = 15;
+    const clearWinner = ranked.length === 1 ||
+      (ranked.length > 1 &&
+       ranked[0].score - ranked[1].score >= CLEAR_WIN_MARGIN);
+
+    let remaining = target;
+
+    if (clearWinner && ranked.length > 0) {
+      const winner = ranked[0];
+      winner.quantity = Math.min(remaining, winner.stock);
+      remaining -= winner.quantity;
+    } else {
+      // Similar scores: repeatedly cycle through ranked offers.
+      // Higher-scoring groups get first chance in each round.
+      while (remaining > 0) {
+        let allocatedThisRound = 0;
+
+        for (const offer of ranked) {
+          if (remaining <= 0) break;
+          if (offer.quantity >= offer.stock) continue;
+
+          offer.quantity += 1;
+          remaining -= 1;
+          allocatedThisRound += 1;
+        }
+
+        if (allocatedThisRound === 0) break;
+      }
+    }
+
+    // Keep table rows in their original positions.
     rows.forEach(function (row) {
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
     });
 
-    let remaining = target;
     let totalUnits = 0;
     let totalCost = 0;
 
     valid.forEach(function (offer) {
-      const quantity = Math.min(remaining, offer.stock);
-
       offer.row.querySelector(".buyer-score").textContent =
         offer.score.toFixed(1);
+      offer.row.querySelector(".buyer-quantity").textContent =
+        offer.quantity;
 
-      offer.row.querySelector(".buyer-quantity").textContent = quantity;
-
-      remaining -= quantity;
-      totalUnits += quantity;
-      totalCost += quantity * offer.price;
+      totalUnits += offer.quantity;
+      totalCost += offer.quantity * offer.price;
     });
 
-    // Do not move table rows: Group 1–4 stay in their original positions.
     document.getElementById("buyer-total-units").textContent = totalUnits;
     document.getElementById("buyer-total-cost").textContent =
       "$" + totalCost.toFixed(2);
     document.getElementById("buyer-offer-count").textContent = valid.length;
 
-    status.textContent = valid.length
-      ? "Strategy calculated. " + remaining +
-        " requested units could not be allocated because of available stock."
-      : "No valid offers with available stock. Check price, quality, and stock.";
+    if (valid.length === 0) {
+      status.textContent = "No valid offers with available stock. Check price, quality, and stock.";
+    } else if (clearWinner) {
+      status.textContent =
+        "A clear top offer was identified. It receives priority; remaining units are left unallocated if its stock runs out.";
+    } else {
+      status.textContent =
+        "Scores are relatively close, so units are shared across ranked offers. " +
+        remaining + " requested units could not be allocated.";
+    }
   }
 
   document.getElementById("run-buyer-strategy")
     .addEventListener("click", runStrategy);
+
+  document.getElementById("buyer-quality-weight")
+    .addEventListener("change", runStrategy);
+
+  document.getElementById("buyer-target")
+    .addEventListener("input", runStrategy);
 
   document.getElementById("reset-buyer-inputs")
     .addEventListener("click", function () {
       if (!confirm("Reset saved prices and quality ratings in this browser?")) {
         return;
       }
-
       localStorage.removeItem(STORAGE_KEY);
       location.reload();
     });
