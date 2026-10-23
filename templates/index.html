@@ -21,9 +21,14 @@
 
   .buyer-page h1 { margin-bottom: 8px; }
   .buyer-page h2 { margin-top: 10px; }
-
   .buyer-muted { color: #64748b; font-size: 13px; }
-  .buyer-metrics { display: flex; flex-wrap: wrap; gap: 12px; }
+  .buyer-status { margin-top: 12px; font-weight: 600; }
+
+  .buyer-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
 
   .buyer-metric {
     background: #f1f5f9;
@@ -35,7 +40,7 @@
   .buyer-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 950px;
+    min-width: 750px;
   }
 
   .buyer-table th,
@@ -58,32 +63,6 @@
     border-radius: 6px;
   }
 
-  .buyer-image-box {
-    width: 80px;
-    height: 65px;
-    border: 1px dashed #94a3b8;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: #f8fafc;
-    margin-bottom: 6px;
-  }
-
-  .buyer-image-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .buyer-image-upload {
-    display: block;
-    max-width: 140px;
-    font-size: 11px;
-    margin-bottom: 5px;
-  }
-
   .buyer-button {
     border: 0;
     border-radius: 7px;
@@ -96,9 +75,8 @@
 
   .buyer-button:hover { background: #1d4ed8; }
   .buyer-button.secondary { background: #475569; }
-  .buyer-button.danger { background: #b91c1c; }
 
-  .buyer-status { margin-top: 12px; font-weight: 600; }
+  .seller-list li { margin-bottom: 8px; }
 
   @media (max-width: 700px) {
     .buyer-page { padding: 12px; }
@@ -109,8 +87,8 @@
 <div class="buyer-page">
   <h1>Toy Soldier Market — Buyer Portal</h1>
   <p class="buyer-muted">
-    Compare seller offers, upload toy images, adjust prices and quality ratings,
-    and calculate recommended purchases. Your changes are saved in this browser.
+    Compare seller offers, adjust prices and quality ratings, and calculate
+    recommended purchases. Price and quality changes are saved in this browser.
   </p>
 
   <section class="buyer-panel">
@@ -123,24 +101,35 @@
 
   <section class="buyer-panel">
     <h2>Seller Directory</h2>
-    {% if seller_groups is defined and seller_groups %}
-      {% for group in seller_groups %}
-        <div>
-          <strong>{{ group.name if group.name is defined else group }}</strong>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p class="buyer-muted">
-        Seller information will be updated when offer details are available.
-      </p>
-    {% endif %}
+    <ul class="seller-list">
+      <li>
+        <strong>Group 1:</strong>
+        Frank Baiata, Justin Meyer, Giovanni Pugni, Ronald Levantini, Ahmaed Thomas
+      </li>
+      <li>
+        <strong>Group 2:</strong>
+        Alif Zaman, Gurkirat Singh, Jeantonio Stsurin, Matthew Fuller, Kevin Yu
+      </li>
+      <li>
+        <strong>Group 3:</strong>
+        Benji Sanoff-Wiener, Cyrus Hossain, Dhrew Gandhi, Maximus Crilly, Zach Mushorn
+      </li>
+      <li>
+        <strong>Group 4:</strong>
+        No seller names listed yet
+      </li>
+      <li>
+        <strong>Group 5:</strong>
+        Joseph Rivera, Joel Rodriguez, Timothy Bas, D'Angelo, Alex
+      </li>
+    </ul>
   </section>
 
   <section class="buyer-panel">
     <h2>Available Toy Offers</h2>
     <p class="buyer-muted">
-      Upload an image for each offer. Prices and quality ratings remain saved
-      after refreshing this page in the same browser.
+      Edit the price and quality rating for each offer. Your changes remain
+      saved after refreshing this page in the same browser.
     </p>
 
     <div style="margin-bottom:14px;">
@@ -186,9 +175,7 @@
       <table class="buyer-table" id="buyer-offers-table">
         <thead>
           <tr>
-            <th>Rank</th>
-            <th>Toy Image</th>
-            <th>Seller / Group</th>
+            <th>Group</th>
             <th>Toy</th>
             <th>Price ($)</th>
             <th>Quality (1–10)</th>
@@ -197,27 +184,16 @@
             <th>Recommended Quantity</th>
           </tr>
         </thead>
+
         <tbody id="buyer-offers-body">
           {% if offers is defined and offers %}
             {% for offer in offers %}
               <tr class="buyer-offer-row"
                   data-key="{{ offer.id if offer.id is defined else loop.index0 }}"
                   data-stock="{{ offer.stock if offer.stock is defined else 10 }}">
-                <td class="buyer-rank">—</td>
-                <td>
-                  <div class="buyer-image-box">
-                    <img class="buyer-image-preview" alt="Toy image preview"
-                         style="display:none;">
-                    <span class="buyer-image-placeholder buyer-muted">No image</span>
-                  </div>
-                  <input class="buyer-image-upload" type="file"
-                         accept="image/*" aria-label="Upload toy image">
-                  <button type="button" class="buyer-clear-image"
-                          style="font-size:11px;">Remove image</button>
-                </td>
-                <td class="buyer-seller">
-                  {{ offer.seller if offer.seller is defined else
-                     offer.group if offer.group is defined else "Seller" }}
+                <td class="buyer-group">
+                  {{ offer.group if offer.group is defined else
+                     offer.seller if offer.seller is defined else "Group " ~ loop.index }}
                 </td>
                 <td class="buyer-toy">
                   {{ offer.toy if offer.toy is defined else
@@ -239,24 +215,14 @@
               </tr>
             {% endfor %}
           {% else %}
-            {% for i in range(1, 5) %}
-              <tr class="buyer-offer-row" data-key="demo-{{ i }}" data-stock="10">
-                <td class="buyer-rank">—</td>
-                <td>
-                  <div class="buyer-image-box">
-                    <img class="buyer-image-preview" alt="Toy image preview"
-                         style="display:none;">
-                    <span class="buyer-image-placeholder buyer-muted">No image</span>
-                  </div>
-                  <input class="buyer-image-upload" type="file"
-                         accept="image/*" aria-label="Upload toy image">
-                  <button type="button" class="buyer-clear-image"
-                          style="font-size:11px;">Remove image</button>
-                </td>
-                <td class="buyer-seller">Group {{ i }}</td>
+            {% for i in range(1, 6) %}
+              <tr class="buyer-offer-row"
+                  data-key="demo-{{ i }}" data-stock="10">
+                <td class="buyer-group">Group {{ i }}</td>
                 <td class="buyer-toy">Toy Soldier</td>
                 <td>
-                  <input type="number" class="buyer-price" min="0" step="0.01" value="10">
+                  <input type="number" class="buyer-price" min="0" step="0.01"
+                         value="10">
                 </td>
                 <td>
                   <input type="number" class="buyer-quality" min="1" max="10"
@@ -278,7 +244,7 @@
   <section class="buyer-panel">
     <h2>Buyer Strategy and Quality Comparison</h2>
     <p>
-      The strategy scores each offer using quality and affordability preferences,
+      The strategy scores offers using quality and affordability preferences,
       ranks the offers, and recommends quantities without exceeding available stock.
       Recommendations do not place actual orders.
     </p>
@@ -305,7 +271,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "toySoldierBuyerOffersV3";
+  const STORAGE_KEY = "toySoldierBuyerOffersV4";
   const body = document.getElementById("buyer-offers-body");
   const status = document.getElementById("buyer-status");
 
@@ -325,37 +291,20 @@
     }
   }
 
-  function showImage(row, dataUrl) {
-    const image = row.querySelector(".buyer-image-preview");
-    const placeholder = row.querySelector(".buyer-image-placeholder");
-
-    if (dataUrl) {
-      image.src = dataUrl;
-      image.style.display = "block";
-      placeholder.style.display = "none";
-    } else {
-      image.removeAttribute("src");
-      image.style.display = "none";
-      placeholder.style.display = "inline";
-    }
-  }
-
   function saveRow(row) {
     const saved = readSavedData();
     const key = rowKey(row);
-    const previous = saved[key] || {};
 
     saved[key] = {
       price: row.querySelector(".buyer-price").value,
-      quality: row.querySelector(".buyer-quality").value,
-      image: previous.image || ""
+      quality: row.querySelector(".buyer-quality").value
     };
 
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
       status.textContent = "Your price and quality changes have been saved.";
     } catch (error) {
-      status.textContent = "Could not save. Browser storage may be full.";
+      status.textContent = "Could not save changes in this browser.";
     }
   }
 
@@ -373,44 +322,6 @@
       if (data.quality !== undefined) {
         row.querySelector(".buyer-quality").value = data.quality;
       }
-
-      if (data.image) {
-        showImage(row, data.image);
-      }
-    });
-  }
-
-  function compressImage(file) {
-    return new Promise(function (resolve, reject) {
-      const reader = new FileReader();
-
-      reader.onerror = reject;
-      reader.onload = function () {
-        const image = new Image();
-
-        image.onerror = reject;
-        image.onload = function () {
-          const maxDimension = 350;
-          const scale = Math.min(
-            1,
-            maxDimension / Math.max(image.width, image.height)
-          );
-
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.max(1, Math.round(image.width * scale));
-          canvas.height = Math.max(1, Math.round(image.height * scale));
-
-          canvas.getContext("2d").drawImage(
-            image, 0, 0, canvas.width, canvas.height
-          );
-
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
-        };
-
-        image.src = reader.result;
-      };
-
-      reader.readAsDataURL(file);
     });
   }
 
@@ -421,58 +332,6 @@
     if (event.target.matches(".buyer-price, .buyer-quality")) {
       saveRow(row);
     }
-  });
-
-  body.addEventListener("change", async function (event) {
-    const row = event.target.closest(".buyer-offer-row");
-    if (!row || !event.target.matches(".buyer-image-upload")) return;
-
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      status.textContent = "Please choose an image file.";
-      event.target.value = "";
-      return;
-    }
-
-    try {
-      status.textContent = "Saving image…";
-      const dataUrl = await compressImage(file);
-      const saved = readSavedData();
-      const key = rowKey(row);
-
-      saved[key] = saved[key] || {};
-      saved[key].price = row.querySelector(".buyer-price").value;
-      saved[key].quality = row.querySelector(".buyer-quality").value;
-      saved[key].image = dataUrl;
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-      showImage(row, dataUrl);
-      status.textContent = "Image saved in this browser.";
-    } catch (error) {
-      status.textContent =
-        "Image could not be saved. Try a smaller image or clear browser storage.";
-    }
-  });
-
-  body.addEventListener("click", function (event) {
-    if (!event.target.matches(".buyer-clear-image")) return;
-
-    const row = event.target.closest(".buyer-offer-row");
-    const saved = readSavedData();
-    const key = rowKey(row);
-
-    if (saved[key]) {
-      saved[key].image = "";
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-      } catch (error) {}
-    }
-
-    row.querySelector(".buyer-image-upload").value = "";
-    showImage(row, "");
-    status.textContent = "Image removed.";
   });
 
   function runStrategy() {
@@ -488,7 +347,7 @@
     const offers = rows.map(function (row) {
       return {
         row: row,
-        seller: row.querySelector(".buyer-seller").textContent.trim(),
+        group: row.querySelector(".buyer-group").textContent.trim(),
         price: Number(row.querySelector(".buyer-price").value),
         quality: Number(row.querySelector(".buyer-quality").value),
         stock: Math.max(0, Number(row.dataset.stock) || 0)
@@ -526,11 +385,10 @@
       return b.score - a.score ||
         b.quality - a.quality ||
         a.price - b.price ||
-        a.seller.localeCompare(b.seller);
+        a.group.localeCompare(b.group);
     });
 
     rows.forEach(function (row) {
-      row.querySelector(".buyer-rank").textContent = "—";
       row.querySelector(".buyer-score").textContent = "—";
       row.querySelector(".buyer-quantity").textContent = "0";
     });
@@ -539,10 +397,9 @@
     let totalUnits = 0;
     let totalCost = 0;
 
-    valid.forEach(function (offer, index) {
+    valid.forEach(function (offer) {
       const quantity = Math.min(remaining, offer.stock);
 
-      offer.row.querySelector(".buyer-rank").textContent = index + 1;
       offer.row.querySelector(".buyer-score").textContent =
         offer.score.toFixed(1);
       offer.row.querySelector(".buyer-quantity").textContent = quantity;
@@ -573,7 +430,7 @@
   document.getElementById("reset-buyer-inputs")
     .addEventListener("click", function () {
       if (!confirm(
-        "Reset saved prices, quality ratings, and images in this browser?"
+        "Reset saved prices and quality ratings in this browser?"
       )) {
         return;
       }
@@ -599,5 +456,6 @@
 })();
 </script>
 {% endblock %}
+
 
 
