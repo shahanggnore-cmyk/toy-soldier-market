@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,7 +71,13 @@ button:hover{filter:brightness(1.05);transform:translateY(-1px)}
 .success{display:block;background:#e1f9ec;color:#08763e;border:1px solid #9fe6bf}
 .error{display:block;background:#ffeded;color:#a11d2d;border:1px solid #ffc6cc}
 .footer-note{background:#eef6ff;border:1px solid #d9eaff;padding:10px 12px;border-radius:9px;margin-top:12px;font-size:13px}
-@media(max-width:600px){header{padding:20px}main{padding:0 10px 25px}section{padding:14px}.strategy-head{display:block}.settings{grid-template-columns:1fr}}
+@media(max-width:600px){
+  header{padding:20px}
+  main{padding:0 10px 25px}
+  section{padding:14px}
+  .strategy-head{display:block}
+  .settings{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -137,29 +142,37 @@ button:hover{filter:brightness(1.05);transform:translateY(-1px)}
       <th>📦 Available Stock</th><th>📊 Score / 100</th><th>🛒 Recommended Quantity</th>
     </tr></thead>
     <tbody id="offerRows">
-      <tr data-group="1"><td><span class="group-tag tag1">Group 1</span></td>
+      <tr data-group="1">
+        <td><span class="group-tag tag1">Group 1</span></td>
         <td><input class="price" type="number" min="0" step=".01" value="10"></td>
         <td><input class="quality" type="number" min="1" max="10" step="1" value="8"></td>
         <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-        <td><span class="score">—</span></td><td><span class="quantity">—</span></td>
+        <td><span class="score">—</span></td>
+        <td><span class="quantity">—</span></td>
       </tr>
-      <tr data-group="2"><td><span class="group-tag tag2">Group 2</span></td>
+      <tr data-group="2">
+        <td><span class="group-tag tag2">Group 2</span></td>
         <td><input class="price" type="number" min="0" step=".01" value="10"></td>
         <td><input class="quality" type="number" min="1" max="10" step="1" value="7"></td>
         <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-        <td><span class="score">—</span></td><td><span class="quantity">—</span></td>
+        <td><span class="score">—</span></td>
+        <td><span class="quantity">—</span></td>
       </tr>
-      <tr data-group="3"><td><span class="group-tag tag3">Group 3</span></td>
+      <tr data-group="3">
+        <td><span class="group-tag tag3">Group 3</span></td>
         <td><input class="price" type="number" min="0" step=".01" value="10"></td>
         <td><input class="quality" type="number" min="1" max="10" step="1" value="6"></td>
         <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-        <td><span class="score">—</span></td><td><span class="quantity">—</span></td>
+        <td><span class="score">—</span></td>
+        <td><span class="quantity">—</span></td>
       </tr>
-      <tr data-group="5"><td><span class="group-tag tag5">Group 5</span></td>
+      <tr data-group="5">
+        <td><span class="group-tag tag5">Group 5</span></td>
         <td><input class="price" type="number" min="0" step=".01" value="10"></td>
         <td><input class="quality" type="number" min="1" max="10" step="1" value="5"></td>
         <td><input class="stock" type="number" min="0" step="1" value="10"></td>
-        <td><span class="score">—</span></td><td><span class="quantity">—</span></td>
+        <td><span class="score">—</span></td>
+        <td><span class="quantity">—</span></td>
       </tr>
     </tbody>
   </table>
@@ -173,153 +186,266 @@ button:hover{filter:brightness(1.05);transform:translateY(-1px)}
 
   <div id="saveStatus" class="status" role="status" aria-live="polite"></div>
   <div id="calculationStatus" class="status" role="status" aria-live="polite"></div>
-  <div class="footer-note">ℹ️ Settings are saved in this browser only. This standalone page does not submit purchases or update the server-side market ledger.</div>
+
+  <div class="footer-note">
+    ℹ️ Shared settings are stored on the server. After someone saves changes, other users can refresh this page to see them. These recommendations do not place purchases or update the market ledger.
+  </div>
 </section>
 </main>
 
 <script>
-const STORAGE_KEY="toySoldierBuyerOffersV10";
-const rows=()=>Array.from(document.querySelectorAll("#offerRows tr"));
+const API_URL = "/api/shared-settings";
+const rows = () => Array.from(document.querySelectorAll("#offerRows tr"));
 
-function showMessage(id,text,isError=false){
-  const el=document.getElementById(id);
-  el.textContent=text;
-  el.className="status "+(isError?"error":"success");
+function showMessage(id, text, isError = false) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = "status " + (isError ? "error" : "success");
+  el.style.display = "block";
 }
-function hideMessage(id){
-  const el=document.getElementById(id);
-  el.style.display="none";
+
+function hideMessage(id) {
+  document.getElementById(id).style.display = "none";
 }
-function readSettings(){
+
+function readSettings() {
   return {
-    priceWeight:document.getElementById("priceWeight").value,
-    qualityWeight:document.getElementById("qualityWeight").value,
-    targetQuantity:document.getElementById("targetQuantity").value,
-    offers:rows().map(row=>({
-      group:row.dataset.group,
-      price:row.querySelector(".price").value,
-      quality:row.querySelector(".quality").value,
-      stock:row.querySelector(".stock").value
+    priceWeight: document.getElementById("priceWeight").value,
+    qualityWeight: document.getElementById("qualityWeight").value,
+    targetQuantity: document.getElementById("targetQuantity").value,
+    offers: rows().map(row => ({
+      group: row.dataset.group,
+      price: row.querySelector(".price").value,
+      quality: row.querySelector(".quality").value,
+      stock: row.querySelector(".stock").value
     }))
   };
 }
-function calculate(){
+
+function applySettings(settings) {
+  document.getElementById("priceWeight").value = settings.priceWeight ?? 50;
+  document.getElementById("qualityWeight").value = settings.qualityWeight ?? 50;
+  document.getElementById("targetQuantity").value = settings.targetQuantity ?? 10;
+
+  const savedOffers = new Map(
+    (settings.offers || []).map(o => [String(o.group), o])
+  );
+
+  rows().forEach(row => {
+    const offer = savedOffers.get(String(row.dataset.group));
+    if (!offer) return;
+
+    row.querySelector(".price").value = offer.price ?? 10;
+    row.querySelector(".quality").value = offer.quality ?? 5;
+    row.querySelector(".stock").value = offer.stock ?? 10;
+  });
+}
+
+async function loadSharedSettings() {
+  try {
+    const response = await fetch(API_URL, { cache: "no-store" });
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const settings = await response.json();
+    applySettings(settings);
+    calculate();
+
+    showMessage("saveStatus", "✓ Shared settings loaded from the server.");
+  } catch (error) {
+    try {
+      calculate();
+    } catch (_) {}
+
+    showMessage(
+      "saveStatus",
+      "Could not load shared settings. The shared-settings API must be installed in app.py. " + error.message,
+      true
+    );
+  }
+}
+
+async function saveSharedSettings(settings = readSettings()) {
+  const response = await fetch(API_URL, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings)
+  });
+
+  if (!response.ok) {
+    let detail = "";
+
+    try {
+      const result = await response.json();
+      if (result.error) detail = " " + result.error;
+    } catch (_) {}
+
+    throw new Error("Server save failed (HTTP " + response.status + ")." + detail);
+  }
+
+  return response.json().catch(() => ({}));
+}
+
+function calculate() {
   hideMessage("calculationStatus");
-  const pw=Number(document.getElementById("priceWeight").value);
-  const qw=Number(document.getElementById("qualityWeight").value);
-  const target=Number(document.getElementById("targetQuantity").value);
 
-  if(!Number.isFinite(pw)||!Number.isFinite(qw)||pw<0||pw>100||qw<0||qw>100||Math.abs(pw+qw-100)>0.000001)
+  const pw = Number(document.getElementById("priceWeight").value);
+  const qw = Number(document.getElementById("qualityWeight").value);
+  const target = Number(document.getElementById("targetQuantity").value);
+
+  if (
+    !Number.isFinite(pw) || !Number.isFinite(qw) ||
+    pw < 0 || pw > 100 || qw < 0 || qw > 100 ||
+    Math.abs(pw + qw - 100) > 0.000001
+  ) {
     throw Error("Price Weight and Quality Weight must add up to 100%.");
-  if(!Number.isInteger(target)||target<0)
+  }
+
+  if (!Number.isInteger(target) || target < 0) {
     throw Error("Target Quantity must be a whole number of zero or more.");
+  }
 
-  const offers=rows().map((row,index)=>{
-    const p=row.querySelector(".price").value;
-    const q=row.querySelector(".quality").value;
-    const s=row.querySelector(".stock").value;
-    const price=Number(p),quality=Number(q),stock=Number(s);
-    if(p===""||q===""||s===""||!Number.isFinite(price)||price<0||
-       !Number.isFinite(quality)||quality<1||quality>10||
-       !Number.isInteger(stock)||stock<0)
+  const offers = rows().map((row, index) => {
+    const p = row.querySelector(".price").value;
+    const q = row.querySelector(".quality").value;
+    const s = row.querySelector(".stock").value;
+
+    const price = Number(p);
+    const quality = Number(q);
+    const stock = Number(s);
+
+    if (
+      p === "" || q === "" || s === "" ||
+      !Number.isFinite(price) || price < 0 ||
+      !Number.isFinite(quality) || quality < 1 || quality > 10 ||
+      !Number.isInteger(stock) || stock < 0
+    ) {
       throw Error("Check prices, quality ratings from 1–10, and whole-number stock amounts.");
-    return {row,index,price,quality,stock,score:0,quantity:0};
+    }
+
+    return { row, index, price, quality, stock, score: 0, quantity: 0 };
   });
 
-  const positivePrices=offers.map(o=>o.price).filter(p=>p>0);
-  const cheapest=positivePrices.length?Math.min(...positivePrices):0;
+  const positivePrices = offers.map(o => o.price).filter(p => p > 0);
+  const cheapest = positivePrices.length ? Math.min(...positivePrices) : 0;
 
-  offers.forEach(o=>{
+  offers.forEach(o => {
     let affordability;
-    if(o.price===0) affordability=100;
-    else if(cheapest===0) affordability=0;
-    else affordability=Math.min(100,cheapest/o.price*100);
-    o.score=affordability*(pw/100)+(o.quality*10)*(qw/100);
+
+    if (o.price === 0) {
+      affordability = 100;
+    } else if (cheapest === 0) {
+      affordability = 0;
+    } else {
+      affordability = Math.min(100, cheapest / o.price * 100);
+    }
+
+    o.score =
+      affordability * (pw / 100) +
+      (o.quality * 10) * (qw / 100);
   });
 
-  // Weighted fair allocation: every unit goes to the eligible offer
-  // with the highest proportional priority, respecting each stock limit.
-  let remaining=target;
-  while(remaining>0){
-    const active=offers.filter(o=>o.quantity<o.stock);
-    if(!active.length) break;
-    const totalWeight=active.reduce((sum,o)=>sum+Math.max(o.score,0.01)**2,0);
-    let best=null,bestPriority=-Infinity;
-    active.forEach(o=>{
-      const weight=Math.max(o.score,0.01)**2;
-      const priority=weight/(o.quantity+1);
-      if(priority>bestPriority+1e-12||
-         (Math.abs(priority-bestPriority)<1e-12&&(!best||o.index<best.index))){
-        best=o;bestPriority=priority;
+  let remaining = target;
+
+  while (remaining > 0) {
+    const active = offers.filter(o => o.quantity < o.stock);
+
+    if (!active.length) break;
+
+    let best = null;
+    let bestPriority = -Infinity;
+
+    active.forEach(o => {
+      const priority = Math.max(o.score, 0.01) ** 2 / (o.quantity + 1);
+
+      if (
+        priority > bestPriority + 1e-12 ||
+        (
+          Math.abs(priority - bestPriority) < 1e-12 &&
+          (!best || o.index < best.index)
+        )
+      ) {
+        best = o;
+        bestPriority = priority;
       }
     });
-    if(!best||totalWeight<=0) break;
+
+    if (!best) break;
+
     best.quantity++;
     remaining--;
   }
 
-  offers.forEach(o=>{
-    o.row.querySelector(".score").textContent=o.score.toFixed(2);
-    o.row.querySelector(".quantity").textContent=o.quantity;
+  offers.forEach(o => {
+    o.row.querySelector(".score").textContent = o.score.toFixed(2);
+    o.row.querySelector(".quantity").textContent = o.quantity;
   });
 
-  showMessage("calculationStatus",
-    "✓ Prices and quality scores updated successfully. Recommended quantities recalculated. "+
-    remaining+" requested units could not be allocated because of available stock.");
+  showMessage(
+    "calculationStatus",
+    "✓ Scores and recommendations updated. " +
+      remaining +
+      " requested units could not be allocated because of available stock."
+  );
 }
 
-document.getElementById("saveButton").addEventListener("click",()=>{
-  try{
+document.getElementById("saveButton").addEventListener("click", async () => {
+  try {
     calculate();
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(readSettings()));
-    showMessage("saveStatus","✓ Changes saved successfully!");
-  }catch(e){showMessage("saveStatus",e.message,true);}
+    await saveSharedSettings();
+
+    showMessage(
+      "saveStatus",
+      "✓ Changes saved to the server. Other users will see them when they refresh."
+    );
+  } catch (error) {
+    showMessage("saveStatus", error.message, true);
+  }
 });
-document.getElementById("calculateButton").addEventListener("click",()=>{
-  try{calculate();}catch(e){showMessage("calculationStatus",e.message,true);}
-});
-document.getElementById("resetButton").addEventListener("click",()=>{
-  localStorage.removeItem(STORAGE_KEY);
-  document.getElementById("priceWeight").value=50;
-  document.getElementById("qualityWeight").value=50;
-  document.getElementById("targetQuantity").value=10;
-  const defaults=[
-    {price:10,quality:8,stock:10},
-    {price:10,quality:7,stock:10},
-    {price:10,quality:6,stock:10},
-    {price:10,quality:5,stock:10}
-  ];
-  rows().forEach((row,i)=>{
-    row.querySelector(".price").value=defaults[i].price;
-    row.querySelector(".quality").value=defaults[i].quality;
-    row.querySelector(".stock").value=defaults[i].stock;
-  });
-  hideMessage("saveStatus");
-  try{
+
+document.getElementById("calculateButton").addEventListener("click", () => {
+  try {
     calculate();
-    showMessage("saveStatus","Demo settings reset. Click Save Changes to save them.");
-  }catch(e){showMessage("saveStatus",e.message,true);}
+  } catch (error) {
+    showMessage("calculationStatus", error.message, true);
+  }
 });
-function loadSettings(){
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw){calculate();return;}
-    const settings=JSON.parse(raw);
-    document.getElementById("priceWeight").value=settings.priceWeight??50;
-    document.getElementById("qualityWeight").value=settings.qualityWeight??50;
-    document.getElementById("targetQuantity").value=settings.targetQuantity??10;
-    const saved=new Map((settings.offers||[]).map(o=>[String(o.group),o]));
-    rows().forEach(row=>{
-      const o=saved.get(row.dataset.group);
-      if(!o)return;
-      row.querySelector(".price").value=o.price;
-      row.querySelector(".quality").value=o.quality;
-      row.querySelector(".stock").value=o.stock;
-    });
+
+document.getElementById("resetButton").addEventListener("click", async () => {
+  const defaults = {
+    priceWeight: 50,
+    qualityWeight: 50,
+    targetQuantity: 10,
+    offers: [
+      { group: "1", price: 10, quality: 8, stock: 10 },
+      { group: "2", price: 10, quality: 7, stock: 10 },
+      { group: "3", price: 10, quality: 6, stock: 10 },
+      { group: "5", price: 10, quality: 5, stock: 10 }
+    ]
+  };
+
+  try {
+    applySettings(defaults);
     calculate();
-  }catch(e){showMessage("saveStatus","Saved settings could not be loaded: "+e.message,true);}
-}
-loadSettings();
+
+    await saveSharedSettings(readSettings());
+
+    showMessage(
+      "saveStatus",
+      "✓ Demo settings reset and saved to the server for everyone."
+    );
+  } catch (error) {
+    showMessage(
+      "saveStatus",
+      "Reset applied on this page, but could not be saved for everyone. " + error.message,
+      true
+    );
+  }
+});
+
+loadSharedSettings();
 </script>
 </body>
 </html>
